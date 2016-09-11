@@ -1,10 +1,10 @@
 export PATH := /usr/cross/powerpc-eabi/bin:$(HOME)/mac-project/toolboxtoolbox:$(PATH)
 
-copy: hqx
-	scp hqx sweetpotato.local:/home/elliotnunn/macstuff/rom.hqx
+copy: tbxi.hqx
+	scp tbxi.hqx sweetpotato.local:$(HOME)/macstuff/
 
-hqx: tbxi-data tbxi-rsrc 
-	binhexmake --data=tbxi-data --rsrc=tbxi-rsrc --type=tbxi --creator=chrp --name='Mac OS ROM' hqx
+tbxi.hqx: tbxi-data tbxi-rsrc 
+	binhexmake --data=tbxi-data --rsrc=tbxi-rsrc --type=tbxi --creator=chrp --name='Mac OS ROM' tbxi.hqx
 
 tbxi-data tbxi-rsrc: boot rsrc-template datafork-pefs
 	tbximake tbxi-data tbxi-rsrc boot rsrc-template datafork-pefs/NQDResidentCursor datafork-pefs/ProcessMgrLib
@@ -82,7 +82,7 @@ prcl: prcl-pefs rom
 \
 --prcl -f=0000000a -t=prop -n=mac-io -c=nvram   \
   --bin -f=00000004 -t=ndrv -n=driver,AAPL,MacOS,PowerPC -l --src=prcl-pefs/ndrv@mac-io:nvram   \
-\
+\https://github.com/elliotnunn/toolboxtoolbox
 --prcl -f=00000001 -t=prop -n=macos -c=''   \
   --bin -f=00000000 -t=cstr -n=MacOSROMFile-version --data 9.6f1   \
 \
@@ -147,4 +147,4 @@ kern.o: kern.asm
 	powerpc-eabi-as -many -mregnames -o kern.o kern.asm
 
 clean:
-	rm boot hqx kern kern.o prcl rom tbxi-data tbxi-rsrc
+	rm boot tbxi.hqx kern kern.o prcl rom tbxi-data tbxi-rsrc

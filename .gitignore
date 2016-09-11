@@ -1,8 +1,9 @@
 boot
-hqx
+tbxi.hqx
 kern
 kern.o
 prcl
 rom
 tbxi-data
 tbxi-rsrc
+*.img
