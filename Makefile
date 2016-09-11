@@ -13,6 +13,7 @@ boot: chrp-boot-script MacOS.elf prcl
 	bootmake --boot-script=chrp-boot-script --trampoline=MacOS.elf --parcels=prcl boot
 
 prcl: prcl-pefs rom
+	@echo making parcels... takes a while
 	@prclmake prcl \
 --prcl -f=00020000 -t=node -n='CodePrepare Node Parcel' -c=''   \
   --bin -f=00000000 -t=cstr -n=name --data AAPL,CodePrepare   \
@@ -82,7 +83,7 @@ prcl: prcl-pefs rom
 \
 --prcl -f=0000000a -t=prop -n=mac-io -c=nvram   \
   --bin -f=00000004 -t=ndrv -n=driver,AAPL,MacOS,PowerPC -l --src=prcl-pefs/ndrv@mac-io:nvram   \
-\https://github.com/elliotnunn/toolboxtoolbox
+\
 --prcl -f=00000001 -t=prop -n=macos -c=''   \
   --bin -f=00000000 -t=cstr -n=MacOSROMFile-version --data 9.6f1   \
 \
@@ -146,12 +147,24 @@ kern: kern.o
 kern.o: kern.asm
 	powerpc-eabi-as -many -mregnames -o kern.o kern.asm
 
-clean:
-	rm boot tbxi.hqx kern kern.o prcl rom tbxi-data tbxi-rsrc
 
-
-
+qemu-test.img: FORCE tbxi-data tbxi-rsrc
+	rsync ../qemu-template.img qemu-test.img
+	hfs-rsrc-fork-hack qemu-test.img tbxi-rsrc
+	mkdir -p mountpoint
+	sudo mount -t hfsplus -o loop qemu-test.img mountpoint
+	sudo sh -c 'cat tbxi-data > "mountpoint/System Folder/Mac OS ROM"'
+	sudo umount mountpoint
+	rmdir mountpoint
 
 
 qemu: qemu-test.img
-	qemu-system-ppc -M mac99 -m 128 -prom-env 'auto-boot?=true' -g 800x837x32 -drive readonly,format=raw,media=disk,file=qemu-test.img
+	qemu-system-ppc -M mac99 -m 128 -prom-env 'auto-boot?=true' -g 800x837x32 -drive format=raw,media=disk,file=qemu-test.img
+
+
+
+clean:
+	rm -f boot tbxi.hqx kern kern.o prcl rom tbxi-data tbxi-rsrc qemu-test.img
+
+
+FORCE:
