@@ -148,3 +148,10 @@ kern.o: kern.asm
 
 clean:
 	rm boot tbxi.hqx kern kern.o prcl rom tbxi-data tbxi-rsrc
+
+
+
+
+
+qemu: qemu-test.img
+	qemu-system-ppc -M mac99 -m 128 -prom-env 'auto-boot?=true' -g 800x837x32 -drive readonly,format=raw,media=disk,file=qemu-test.img
