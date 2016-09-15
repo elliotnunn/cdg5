@@ -4,9 +4,8 @@
 
 ************************************************************
 
-Receive control from the NewWorld Trampoline bootloader. Probably the OldWorld kernel patch mechanism starts in the same place.
-
-If the attempt_load function returns then kernel startup has failed. I think.
+Entry point from Trampoline on NewWorld.
+Only continues loading if the DR (data address translation) bit of the MSR is unset. Be not fooled by the linking call, which never returns. If DR is set, then we RFI to a location *in* the ConfigInfo struct with DR and IR unset, and r9 containing the address of our caller 
 
 ************************************************************
 
@@ -32,8 +31,6 @@ b       nk_start_0xc                                 # 00000
 
 nk_start_0xc:
 crclr   4*cr5 + eq                                   # 0000c
-
-#   If DR (data addr translation) bit of MSR is unset...
 mfmsr    r0                                          # 00010
 rlwinm.  r0,  r0,  0, 27, 27                         # 00014
 
@@ -44,15 +41,9 @@ rlwinm.  r0,  r0,  0, 27, 27                         # 00014
 # r7 = rtas_fourcc
 # r8 = rtas_proc
 # r9 = boot_hw_info
-beql-   new_world_setup                              # 00018
-
-#   linking call to attempt_load never returns!
-#     r9 = &kernel
-#   SRR0 = r3 - 64
-#   SRR1 = MSR minus IR and DR bits
-#   Return From Interrupt: SRR0 -> PC; SRR1 -> MSR
+beql-   new_world                                    # 00018
 mflr     r9                                          # 0001c
-addi     r9,  r9, nk_start-(.-4)                     # 00020
+addi     r9,  r9, -0x1c                              # 00020
 addi    r12,  r3,  0x40 # ConfigInfo.bl_fffff93c_from_start
 mfmsr   r11                                          # 00028
 li      r10, -0x7fd0                                 # 0002c
@@ -125,11 +116,9 @@ bl      choose_int_handler_kind                      # 000d0
 # r7 = interrupt handler address
 
 stw      r7,  0x05b0( r1)                            # 000d4
-bl      replace_old_kernel_0x9c                      # 000d8
-
-replace_old_kernel_0x9c:
-mflr    r12                                          # 000dc
-addi    r12, r12, -0xdc                              # 000e0
+88: bl  99f                                          # 000d8
+99: mflr r12                                         # 000dc
+addi    r12, r12, nk_start - 88b - 4                 # 000e0
 stw     r12,  0x064c( r1)                            # 000e4
 lis     r10,      funny_debug_place@h                # 000e8
 ori     r10, r10, funny_debug_place@l                # 000ec
@@ -159,7 +148,7 @@ b       replace_old_kernel_0x130                     # 00148
 
 replace_old_kernel_0x10c:
 cmpwi   r12,  0x200                                  # 0014c
-bge-    fail                                         # 00150
+bge-    undo_failed_kernel_replacement               # 00150
 lwz     r12, -0x0014(r11)                            # 00154
 stw     r12, -0x0014( r1)                            # 00158
 lwz     r12, -0x0010(r11)                            # 0015c
@@ -279,7 +268,9 @@ ori      r8,  r8,  0x10                              # 00300
 
 replace_old_kernel_0x2c4:
 stw      r8,  0x0edc( r1)                            # 00304
-bl      set_up_log                                   # 00308
+
+# r1 = kdp
+bl      init_log                                     # 00308
 bl      1f                                           # 0030c
 .ascii  "Hello from the replacement multitasking NanoKernel. Version: "
 .short  0                                            # 0034d
@@ -328,7 +319,9 @@ bl      1f                                           # 003e8
 1: mflr  r8                                          # 003f0
 bl      print_string                                 # 003f4
 lwz      r6,  0x0658( r1)                            # 003f8
-b       all_world_setup_0xd4                         # 003fc
+
+# r1 = kdp
+b       setup                                        # 003fc
 
 
 
@@ -400,7 +393,7 @@ Fill the irp with 0x68f1.
 
 Xrefs:
 replace_old_kernel
-new_world_setup
+new_world
 
 ************************************************************
 
@@ -425,7 +418,7 @@ blr                                                  # 004a4
 
 /***********************************************************
 
-                      new_world_setup                       
+                         new_world                          
 
 ************************************************************
 
@@ -455,7 +448,7 @@ nk_start
 
 ***********************************************************/
 
-new_world_setup:  /* < outside referer */
+new_world:  /* < outside referer */
 li       r0,  0x00                                   # 004a8
 
 #   Load seg reg 0 with 0x20000000 and all others with zeros
@@ -510,10 +503,10 @@ lwz     r12,  0x0360( r3) # ConfigInfo.phys_ram_base # 00548
 addi    r10,  r5,  0x2c # sys_info.phys_toolboxrom   # 0054c
 
 #   search sys_info for the physical address of the Toolbox ROM
-new_world_setup_0xa8:
+new_world_0xa8:
 lwzu    r11,  0x0008(r10)                            # 00550
 cmpwi   r11,  0x00                                   # 00554
-beq+    new_world_setup_0xa8                         # 00558
+beq+    new_world_0xa8                               # 00558
 
 #   now r11=toolbox and r12=ram
 #   Some really tricky stuff happens here with the memory data.
@@ -530,10 +523,10 @@ stw     r11, -0x0004(r10)                            # 0057c
 lwz     r11,  0x0000( r5) # sys_info.u32_ram_size    # 00580
 addis   r15, r11,  0x01                              # 00584
 cmpwi   r15,  0x00                                   # 00588
-bgt-    new_world_setup_0xec                         # 0058c
+bgt-    new_world_0xec                               # 0058c
 addi    r11, r11, -0x1000                            # 00590
 
-new_world_setup_0xec:
+new_world_0xec:
 subf    r11, r12, r11                                # 00594
 stw     r11,  0x0000( r5) # sys_info.u32_ram_size    # 00598
 lwz     r15,  0x0000( r5) # sys_info.u32_ram_size    # 0059c
@@ -551,16 +544,16 @@ ori     r10, r10,  0xc001                            # 005c8
 add     r15, r15, r10                                # 005cc
 addi    r10,  r5,  0x100 # sys_info.0x100            # 005d0
 
-new_world_setup_0x12c:
+new_world_0x12c:
 lwz     r11, -0x0004(r10)                            # 005d4
 lwzu    r12, -0x0008(r10)                            # 005d8
 add     r11, r12, r11                                # 005dc
 andc    r13, r11, r14                                # 005e0
 subf    r13, r15, r13                                # 005e4
 cmplw   r13, r12                                     # 005e8
-blt+    new_world_setup_0x12c                        # 005ec
+blt+    new_world_0x12c                              # 005ec
 cmplw   r13, r11                                     # 005f0
-bgt+    new_world_setup_0x12c                        # 005f4
+bgt+    new_world_0x12c                              # 005f4
 add     r12, r13, r15                                # 005f8
 subf    r12, r14, r12                                # 005fc
 rlwimi  r12, r14, 16, 16, 31                         # 00600
@@ -573,23 +566,23 @@ mtspr   272/*sprg0*/,  r1                            # 00618
 lwz     r11,  0x07b0( r1) # kdp.0x7b0                # 0061c
 cmpw    r12, r11                                     # 00620
 lis     r11,       0x7fff                            # 00624
-bne-    new_world_setup_0x18c                        # 00628
+bne-    new_world_0x18c                              # 00628
 subf    r11, r13,  r1                                # 0062c
 addi    r11, r11,  0x700                             # 00630
 
-new_world_setup_0x18c:
+new_world_0x18c:
 subf    r12, r14, r15                                # 00634
 addi    r12, r12, -0x01                              # 00638
 
-new_world_setup_0x194:
+new_world_0x194:
 addic.  r12, r12, -0x04                              # 0063c
 subf    r10, r11, r12                                # 00640
 cmplwi   cr7, r10,  0x208                            # 00644
-ble-     cr7, new_world_setup_0x1a8                  # 00648
+ble-     cr7, new_world_0x1a8                        # 00648
 stwx     r0, r13, r12                                # 0064c
 
-new_world_setup_0x1a8:
-bne+    new_world_setup_0x194                        # 00650
+new_world_0x1a8:
+bne+    new_world_0x194                              # 00650
 stw      r1, -0x0004( r1) # kdp.-0x4                 # 00654
 lis     r12,      -0x01                              # 00658
 ori     r12, r12,  0x6000                            # 0065c
@@ -609,11 +602,11 @@ lwz     r11, -0x0020( r1) # kdp.irp                  # 00688
 addi    r11, r11,  0xf00                             # 0068c
 li      r10,  0xc0                                   # 00690
 
-new_world_setup_0x1ec:
+new_world_0x1ec:
 addic.  r10, r10, -0x04                              # 00694
 lwzx    r12,  r9, r10                                # 00698
 stwx    r12, r11, r10                                # 0069c
-bgt+    new_world_setup_0x1ec                        # 006a0
+bgt+    new_world_0x1ec                              # 006a0
 stw     r23, -0x0900( r1) # kdp.-0x900               # 006a4
 b       end_if_rtas                                  # 006a8
 
@@ -625,52 +618,54 @@ end_if_rtas:
 addi    r11,  r1,  0xf20 # kdp.u32_pvr               # 006b4
 li      r10,  0xa0                                   # 006b8
 
-new_world_setup_0x214:
+new_world_0x214:
 addic.  r10, r10, -0x04                              # 006bc
 lwzx    r12,  r4, r10                                # 006c0
 stwx    r12, r11, r10                                # 006c4
-bgt+    new_world_setup_0x214                        # 006c8
+bgt+    new_world_0x214                              # 006c8
 lwz     r11, -0x0020( r1) # kdp.irp                  # 006cc
 addi    r11, r11,  0xdc0                             # 006d0
 li      r10,  0x140                                  # 006d4
 
-new_world_setup_0x230:
+new_world_0x230:
 addic.  r10, r10, -0x04                              # 006d8
 lwzx    r12,  r5, r10                                # 006dc
 stwx    r12, r11, r10                                # 006e0
-bgt+    new_world_setup_0x230                        # 006e4
+bgt+    new_world_0x230                              # 006e4
 cmpwi    r6,  0x00                                   # 006e8
-beq-    new_world_setup_0x260                        # 006ec
+beq-    new_world_0x260                              # 006ec
 addi    r11,  r1, -0x5d0 # kdp.-0x5d0                # 006f0
 li      r10,  0x100                                  # 006f4
 
-new_world_setup_0x250:
+new_world_0x250:
 addic.  r10, r10, -0x04                              # 006f8
 lwzx    r12,  r6, r10                                # 006fc
 stwx    r12, r11, r10                                # 00700
-bgt+    new_world_setup_0x250                        # 00704
+bgt+    new_world_0x250                              # 00704
 
-new_world_setup_0x260:
+new_world_0x260:
 stw      r3,  0x0630( r1) # kdp.ConfigInfo           # 00708
 lwz      r9,  0x0630( r1) # kdp.ConfigInfo           # 0070c
 lhz      r8,  0x0378( r9)                            # 00710
 cmplwi   r8,  0x101                                  # 00714
 lwz      r8,  0x0edc( r1) # kdp.0xedc                # 00718
-blt-    new_world_setup_0x28c                        # 0071c
+blt-    new_world_0x28c                              # 0071c
 lwz      r8,  0x0388( r9)                            # 00720
 rlwinm.  r8,  r8,  0, 30, 30                         # 00724
 lwz      r8,  0x0edc( r1) # kdp.0xedc                # 00728
-beq-    new_world_setup_0x28c                        # 0072c
+beq-    new_world_0x28c                              # 0072c
 ori      r8,  r8,  0x08                              # 00730
 
-new_world_setup_0x28c:
+new_world_0x28c:
 ori      r8,  r8,  0x01                              # 00734
 ori      r8,  r8,  0x10                              # 00738
 stw      r8,  0x0edc( r1) # kdp.0xedc                # 0073c
 addi     r9,  r1, -0x340 # kdp.-0x340                # 00740
 li       r8, -0x01                                   # 00744
 stw      r8,  0x0000( r9)                            # 00748
-bl      set_up_log                                   # 0074c
+
+# r1 = kdp
+bl      init_log                                     # 0074c
 bl      1f                                           # 00750
 .ascii  "Hello from the builtin multitasking NanoKernel. Version: "
 .short  0                                            # 0078d
@@ -710,11 +705,9 @@ lwz     r12,  0x00ac( r3) # ConfigInfo.logi_EmulatorCode
 lwz     r11,  0x0084( r3) # ConfigInfo.emu_offset_e8c0
 add     r12, r12, r11                                # 007f8
 stw     r12,  0x0648( r1) # kdp.emu_e8c0             # 007fc
-bl      new_world_setup_0x35c                        # 00800
-
-new_world_setup_0x35c:
-mflr    r12                                          # 00804
-addi    r12, r12, nk_start - new_world_setup_0x35c   # 00808
+88: bl  99f                                          # 00800
+99: mflr r12                                         # 00804
+addi    r12, r12, nk_start - 88b - 4                 # 00808
 stw     r12,  0x064c( r1) # kdp.phys_kern_base       # 0080c
 lis     r11,      funny_debug_place@h                # 00810
 ori     r11, r11, funny_debug_place@l                # 00814
@@ -824,23 +817,23 @@ stw     r12,  0x005c(r11)                            # 009b0
 lwz     r10,  0x0640( r1) # kdp.phys_ram_base        # 009b4
 li       r9,  0x2000                                 # 009b8
 
-new_world_setup_0x514:
+new_world_0x514:
 addic.   r9,  r9, -0x04                              # 009bc
 stwx     r0, r10,  r9                                # 009c0
-bne+    new_world_setup_0x514                        # 009c4
+bne+    new_world_0x514                              # 009c4
 lwz     r11,  0x00b0( r3) # ConfigInfo.0xb0          # 009c8
 lwz     r10,  0x0640( r1) # kdp.phys_ram_base        # 009cc
 lwzux    r9, r11,  r3                                # 009d0
 
-new_world_setup_0x52c:
+new_world_0x52c:
 mr.      r9,  r9                                     # 009d4
-beq-    new_world_setup_0x544                        # 009d8
+beq-    new_world_0x544                              # 009d8
 lwzu    r12,  0x0004(r11)                            # 009dc
 stwx    r12, r10,  r9                                # 009e0
 lwzu     r9,  0x0004(r11)                            # 009e4
-b       new_world_setup_0x52c                        # 009e8
+b       new_world_0x52c                              # 009e8
 
-new_world_setup_0x544:
+new_world_0x544:
 lwz     r11, -0x0020( r1) # kdp.irp                  # 009ec
 lwz     r11,  0x0f70(r11)                            # 009f0
 lis     r12,       0x486e                            # 009f4
@@ -848,11 +841,7 @@ ori     r12, r12,  0x666f                            # 009f8
 cmplw   r12, r11                                     # 009fc
 
 # r1 = kdp
-# r3 = ConfigInfo
-# r4 = processor_info
-# r5 = sys_info
-# r6 = boot_r6
-beq-    all_world_setup                              # 00a00
+beq-    new_world_final_common                       # 00a00
 mfspr   r12, 287/*pvr*/                              # 00a04
 stw     r12,  0x0f20( r1) # kdp.u32_pvr              # 00a08
 srwi    r12, r12,  0x10                              # 00a0c
@@ -871,7 +860,7 @@ addi    r11, r11, cpuinfo_override_table - nk_start  # 00a20
 # r9 = cpuinfo_size
 # r10 = kdp_cpuinfo
 # r11 = static_cpuinfo
-beq-    all_world_setup_with_old_cpu                 # 00a24
+beq-    new_world_hardcode_cpu_info                  # 00a24
 cmpwi   r12,  0x03                                   # 00a28
 addi    r11, r11,  0x24                              # 00a2c
 
@@ -882,7 +871,7 @@ addi    r11, r11,  0x24                              # 00a2c
 # r9 = cpuinfo_size
 # r10 = kdp_cpuinfo
 # r11 = static_cpuinfo
-beq-    all_world_setup_with_old_cpu                 # 00a30
+beq-    new_world_hardcode_cpu_info                  # 00a30
 cmpwi   r12,  0x04                                   # 00a34
 addi    r11, r11,  0x24                              # 00a38
 
@@ -893,7 +882,7 @@ addi    r11, r11,  0x24                              # 00a38
 # r9 = cpuinfo_size
 # r10 = kdp_cpuinfo
 # r11 = static_cpuinfo
-beq-    all_world_setup_with_old_cpu                 # 00a3c
+beq-    new_world_hardcode_cpu_info                  # 00a3c
 cmpwi   r12,  0x06                                   # 00a40
 addi    r11, r11,  0x24                              # 00a44
 
@@ -904,7 +893,7 @@ addi    r11, r11,  0x24                              # 00a44
 # r9 = cpuinfo_size
 # r10 = kdp_cpuinfo
 # r11 = static_cpuinfo
-beq-    all_world_setup_with_old_cpu                 # 00a48
+beq-    new_world_hardcode_cpu_info                  # 00a48
 cmpwi   r12,  0x07                                   # 00a4c
 addi    r11, r11,  0x24                              # 00a50
 
@@ -915,7 +904,7 @@ addi    r11, r11,  0x24                              # 00a50
 # r9 = cpuinfo_size
 # r10 = kdp_cpuinfo
 # r11 = static_cpuinfo
-beq-    all_world_setup_with_old_cpu                 # 00a54
+beq-    new_world_hardcode_cpu_info                  # 00a54
 cmpwi   r12,  0x08                                   # 00a58
 addi    r11, r11,  0x24                              # 00a5c
 
@@ -926,7 +915,7 @@ addi    r11, r11,  0x24                              # 00a5c
 # r9 = cpuinfo_size
 # r10 = kdp_cpuinfo
 # r11 = static_cpuinfo
-beq-    all_world_setup_with_old_cpu                 # 00a60
+beq-    new_world_hardcode_cpu_info                  # 00a60
 cmpwi   r12,  0x09                                   # 00a64
 addi    r11, r11,  0x24                              # 00a68
 
@@ -937,7 +926,7 @@ addi    r11, r11,  0x24                              # 00a68
 # r9 = cpuinfo_size
 # r10 = kdp_cpuinfo
 # r11 = static_cpuinfo
-beq-    all_world_setup_with_old_cpu                 # 00a6c
+beq-    new_world_hardcode_cpu_info                  # 00a6c
 cmpwi   r12,  0x0a                                   # 00a70
 
 # r3 = ConfigInfo
@@ -947,7 +936,7 @@ cmpwi   r12,  0x0a                                   # 00a70
 # r9 = cpuinfo_size
 # r10 = kdp_cpuinfo
 # r11 = static_cpuinfo
-beq-    all_world_setup_with_old_cpu                 # 00a74
+beq-    new_world_hardcode_cpu_info                  # 00a74
 cmpwi   r12,  0x0c                                   # 00a78
 addi    r11, r11,  0x24                              # 00a7c
 
@@ -958,7 +947,7 @@ addi    r11, r11,  0x24                              # 00a7c
 # r9 = cpuinfo_size
 # r10 = kdp_cpuinfo
 # r11 = static_cpuinfo
-beq-    all_world_setup_with_old_cpu                 # 00a80
+beq-    new_world_hardcode_cpu_info                  # 00a80
 cmpwi   r12,  0x0d                                   # 00a84
 addi    r11, r11,  0x24                              # 00a88
 
@@ -969,7 +958,7 @@ addi    r11, r11,  0x24                              # 00a88
 # r9 = cpuinfo_size
 # r10 = kdp_cpuinfo
 # r11 = static_cpuinfo
-beq-    all_world_setup_with_old_cpu                 # 00a8c
+beq-    new_world_hardcode_cpu_info                  # 00a8c
 
 #   get base of page table (why?)
 mfspr   r22, 25/*sdr1*/                              # 00a90
@@ -986,22 +975,22 @@ mtctr   r12                                          # 00aa8
 lwz     r12, -0x0020( r1) # kdp.irp                  # 00aac
 addi    r10, r12,  0xec0                             # 00ab0
 
-new_world_setup_0x60c:
+new_world_0x60c:
 lwz     r11, -0x0004(r10)                            # 00ab4
 lwzu    r12, -0x0008(r10)                            # 00ab8
 subf     r9, r12, r21                                # 00abc
 cmplw    r9, r11                                     # 00ac0
-bge-    new_world_setup_0x624                        # 00ac4
+bge-    new_world_0x624                              # 00ac4
 mr      r11,  r9                                     # 00ac8
 
-new_world_setup_0x624:
+new_world_0x624:
 cmplw   r11, r15                                     # 00acc
-ble-    new_world_setup_0x634                        # 00ad0
+ble-    new_world_0x634                              # 00ad0
 mr      r13, r12                                     # 00ad4
 mr      r15, r11                                     # 00ad8
 
-new_world_setup_0x634:
-bdnz+   new_world_setup_0x60c                        # 00adc
+new_world_0x634:
+bdnz+   new_world_0x60c                              # 00adc
 addi    r12, r22, -0x01                              # 00ae0
 neg     r11, r13                                     # 00ae4
 and     r12, r11, r12                                # 00ae8
@@ -1013,17 +1002,17 @@ stw     r11,  0x0f30( r1) # kdp.u32_cpuinfo_page_size
 li      r11, -0x01                                   # 00b00
 li      r10,  0x400                                  # 00b04
 
-new_world_setup_0x660:
+new_world_0x660:
 addic.  r10, r10, -0x04                              # 00b08
 stwx    r11, r21, r10                                # 00b0c
-bne+    new_world_setup_0x660                        # 00b10
+bne+    new_world_0x660                              # 00b10
 dcbz     r0, r21                                     # 00b14
 
-new_world_setup_0x670:
+new_world_0x670:
 addi    r10, r10,  0x01                              # 00b18
 lbzx    r11, r21, r10                                # 00b1c
 cmpwi   r11,  0x00                                   # 00b20
-beq+    new_world_setup_0x670                        # 00b24
+beq+    new_world_0x670                              # 00b24
 sth     r10,  0x0f3c( r1) # kdp.u16_cpuinfo_coherency_block_size
 sth     r10,  0x0f3e( r1) # kdp.u16_cpuinfo_reservation_granule_size
 sth     r10,  0x0f46( r1) # kdp.u16_cpuinfo_dcache_block_size_touch
@@ -1034,29 +1023,29 @@ add     r11, r21, r22                                # 00b40
 addi    r11, r11, -0xe6e                             # 00b44
 addis   r10, r21,  0x01                              # 00b48
 
-new_world_setup_0x6a4:
+new_world_0x6a4:
 stwu    r11, -0x0004(r10)                            # 00b4c
 rlwimi  r12, r10, 29, 29, 31                         # 00b50
 stwu    r12, -0x0004(r10)                            # 00b54
 cmpw    r10, r21                                     # 00b58
 rlwinm   r9, r10,  9,  7, 19                         # 00b5c
 tlbie    r9                                          # 00b60
-bne+    new_world_setup_0x6a4                        # 00b64
+bne+    new_world_0x6a4                              # 00b64
 sync                                                 # 00b68
 isync                                                # 00b6c
 lwz     r11,  0x064c( r1) # kdp.phys_kern_base       # 00b70
-li      r12,  0x2d                                   # 00b74
+li      r12, (copied_code_1_end - copied_code_1) / 4 # 00b74
 mtctr   r12                                          # 00b78
 add     r20, r21, r22                                # 00b7c
-addi    r11, r11,  0x1088                            # 00b80
+addi    r11, r11, copied_code_1_end - nk_start       # 00b80
 
-new_world_setup_0x6dc:
+new_world_0x6dc:
 lwzu    r12, -0x0004(r11)                            # 00b84
 stwu    r12, -0x0004(r20)                            # 00b88
 dcbst    r0, r20                                     # 00b8c
 sync                                                 # 00b90
 icbi     r0, r20                                     # 00b94
-bdnz+   new_world_setup_0x6dc                        # 00b98
+bdnz+   new_world_0x6dc                              # 00b98
 sync                                                 # 00b9c
 isync                                                # 00ba0
 stw      r0,  0x0f34( r1) # kdp.u32_cpuinfo_dcache_size
@@ -1064,43 +1053,43 @@ li      r17,  0x00                                   # 00ba8
 li      r18,  0x200                                  # 00bac
 li      r19,  0x00                                   # 00bb0
 li      r16, -0x01                                   # 00bb4
-b       new_world_setup_0x720                        # 00bb8
+b       new_world_0x720                              # 00bb8
 
-new_world_setup_0x714:
+new_world_0x714:
 addi    r17, r17,  0x200                             # 00bbc
 cmplw   r17, r15                                     # 00bc0
-bge-    new_world_setup_0x734                        # 00bc4
+bge-    new_world_0x734                              # 00bc4
 
-new_world_setup_0x720:
+new_world_0x720:
 mtlr    r20                                          # 00bc8
 blrl                                                 # 00bcc
-ble+    new_world_setup_0x714                        # 00bd0
+ble+    new_world_0x714                              # 00bd0
 addi    r12, r17, -0x200                             # 00bd4
 stw     r12,  0x0f34( r1) # kdp.u32_cpuinfo_dcache_size
 
-new_world_setup_0x734:
+new_world_0x734:
 li      r12,  0x01                                   # 00bdc
 sth     r12,  0x0f4e( r1) # kdp.u16_cpuinfo_dcache_assoc
 lwz     r18,  0x0f34( r1) # kdp.u32_cpuinfo_dcache_size
 mr      r17, r18                                     # 00be8
 li      r19,  0x00                                   # 00bec
 li      r16, -0x01                                   # 00bf0
-b       new_world_setup_0x75c                        # 00bf4
+b       new_world_0x75c                              # 00bf4
 
-new_world_setup_0x750:
+new_world_0x750:
 add     r17, r17, r18                                # 00bf8
 cmplw   r17, r15                                     # 00bfc
-bge-    new_world_setup_0x774                        # 00c00
+bge-    new_world_0x774                              # 00c00
 
-new_world_setup_0x75c:
+new_world_0x75c:
 mtlr    r20                                          # 00c04
 blrl                                                 # 00c08
-ble+    new_world_setup_0x750                        # 00c0c
+ble+    new_world_0x750                              # 00c0c
 subf    r17, r18, r17                                # 00c10
 divwu   r12, r17, r18                                # 00c14
 sth     r12,  0x0f4e( r1) # kdp.u16_cpuinfo_dcache_assoc
 
-new_world_setup_0x774:
+new_world_0x774:
 lwz     r17,  0x0f34( r1) # kdp.u32_cpuinfo_dcache_size
 lhz     r18,  0x0f4e( r1) # kdp.u16_cpuinfo_dcache_assoc
 slwi    r17, r17,  0x01                              # 00c24
@@ -1109,22 +1098,22 @@ srwi    r19, r18,  0x01                              # 00c2c
 li      r14,  0x200                                  # 00c30
 add     r19, r19, r14                                # 00c34
 li      r16, -0x01                                   # 00c38
-b       new_world_setup_0x7ac                        # 00c3c
+b       new_world_0x7ac                              # 00c3c
 
-new_world_setup_0x798:
+new_world_0x798:
 lhz     r12,  0x0f4a( r1) # kdp.u16_cpuinfo_dcache_block_size
 cmplw   r14, r12                                     # 00c44
-ble-    new_world_setup_0x7bc                        # 00c48
+ble-    new_world_0x7bc                              # 00c48
 srwi    r14, r14,  0x01                              # 00c4c
 subf    r19, r14, r19                                # 00c50
 
-new_world_setup_0x7ac:
+new_world_0x7ac:
 mtlr    r20                                          # 00c54
 blrl                                                 # 00c58
-ble+    new_world_setup_0x798                        # 00c5c
+ble+    new_world_0x798                              # 00c5c
 slwi    r12, r14,  0x01                              # 00c60
 
-new_world_setup_0x7bc:
+new_world_0x7bc:
 sth     r12,  0x0f44( r1) # kdp.u16_cpuinfo_dcache_line_size
 mtspr   25/*sdr1*/, r21                              # 00c68
 mr      r14, r13                                     # 00c6c
@@ -1134,15 +1123,15 @@ li      r17,  0x00                                   # 00c78
 lwz     r18,  0x0f30( r1) # kdp.u32_cpuinfo_page_size
 li      r19,  0x00                                   # 00c80
 li      r16, -0x01                                   # 00c84
-b       new_world_setup_0x7f4                        # 00c88
+b       new_world_0x7f4                              # 00c88
 
-new_world_setup_0x7e4:
+new_world_0x7e4:
 add     r17, r17, r18                                # 00c8c
 lis     r12,       0x3f                              # 00c90
 cmplw   r17, r12                                     # 00c94
-bge-    new_world_setup_0x82c                        # 00c98
+bge-    new_world_0x82c                              # 00c98
 
-new_world_setup_0x7f4:
+new_world_0x7f4:
 mtlr    r20                                          # 00c9c
 mfmsr   r12                                          # 00ca0
 ori     r12, r12,  0x10                              # 00ca4
@@ -1153,27 +1142,27 @@ mfmsr   r12                                          # 00cb4
 rlwinm  r12, r12,  0, 28, 26                         # 00cb8
 mtmsr   r12                                          # 00cbc
 isync                                                # 00cc0
-ble+    new_world_setup_0x7e4                        # 00cc4
+ble+    new_world_0x7e4                              # 00cc4
 subf    r17, r18, r17                                # 00cc8
 divwu   r12, r17, r18                                # 00ccc
 sth     r12,  0x0f50( r1) # kdp.u16_cpuinfo_tlb_size # 00cd0
 
-new_world_setup_0x82c:
+new_world_0x82c:
 li      r12,  0x01                                   # 00cd4
 sth     r12,  0x0f52( r1) # kdp.u16_cpuinfo_tlb_assoc
 li      r17,  0x00                                   # 00cdc
 lis     r18,       0x40                              # 00ce0
 li      r19,  0x00                                   # 00ce4
 li      r16, -0x01                                   # 00ce8
-b       new_world_setup_0x858                        # 00cec
+b       new_world_0x858                              # 00cec
 
-new_world_setup_0x848:
+new_world_0x848:
 add     r17, r17, r18                                # 00cf0
 lis     r12,       0x200                             # 00cf4
 cmplw   r17, r12                                     # 00cf8
-bge-    new_world_setup_0x890                        # 00cfc
+bge-    new_world_0x890                              # 00cfc
 
-new_world_setup_0x858:
+new_world_0x858:
 mtlr    r20                                          # 00d00
 mfmsr   r12                                          # 00d04
 ori     r12, r12,  0x10                              # 00d08
@@ -1184,12 +1173,12 @@ mfmsr   r12                                          # 00d18
 rlwinm  r12, r12,  0, 28, 26                         # 00d1c
 mtmsr   r12                                          # 00d20
 isync                                                # 00d24
-ble+    new_world_setup_0x848                        # 00d28
+ble+    new_world_0x848                              # 00d28
 subf    r17, r18, r17                                # 00d2c
 divwu   r12, r17, r18                                # 00d30
 sth     r12,  0x0f52( r1) # kdp.u16_cpuinfo_tlb_assoc
 
-new_world_setup_0x890:
+new_world_0x890:
 mr      r13, r14                                     # 00d38
 addi    r12, r22, -0x01                              # 00d3c
 srwi    r12, r12,  0x10                              # 00d40
@@ -1222,37 +1211,34 @@ blrl                                                 # 00da8
 sth     r11,  0x0f40( r1) # kdp.u16_cpuinfo_unified_caches
 cmpwi   r11,  0x01                                   # 00db0
 beq-    skip_cache_hackery_never                     # 00db4
-
-#   All I/D cache initialisation from here on down.
-#   (There was never a NewWorld machine with unified caches.)
 lwz     r11,  0x064c( r1) # kdp.phys_kern_base       # 00db8
-li      r12,  0x31                                   # 00dbc
+li      r12, (copied_code_2_end - copied_code_2) / 4 # 00dbc
 mtctr   r12                                          # 00dc0
 add     r20, r21, r22                                # 00dc4
-addi    r11, r11,  0x114c                            # 00dc8
+addi    r11, r11, copied_code_2_end - nk_start       # 00dc8
 
-new_world_setup_0x924:
+new_world_0x924:
 lwzu    r12, -0x0004(r11)                            # 00dcc
 stwu    r12, -0x0004(r20)                            # 00dd0
 dcbst    r0, r20                                     # 00dd4
 sync                                                 # 00dd8
 icbi     r0, r20                                     # 00ddc
-bdnz+   new_world_setup_0x924                        # 00de0
+bdnz+   new_world_0x924                              # 00de0
 sync                                                 # 00de4
 isync                                                # 00de8
 subf    r12, r21, r20                                # 00dec
 mulli   r12, r12,  0x80                              # 00df0
 cmplw   r12, r15                                     # 00df4
-bge-    new_world_setup_0x958                        # 00df8
+bge-    new_world_0x958                              # 00df8
 mr      r15, r12                                     # 00dfc
 
-new_world_setup_0x958:
+new_world_0x958:
 add     r12, r13, r15                                # 00e00
 mr      r11, r20                                     # 00e04
 lis     r10,       0x4e80                            # 00e08
 ori     r10, r10,  0x20                              # 00e0c
 
-new_world_setup_0x968:
+new_world_0x968:
 lwzu     r9, -0x0200(r12)                            # 00e10
 stw     r10,  0x0000(r12)                            # 00e14
 cmpw    r12, r13                                     # 00e18
@@ -1260,7 +1246,7 @@ stwu     r9, -0x0004(r11)                            # 00e1c
 dcbst    r0, r12                                     # 00e20
 sync                                                 # 00e24
 icbi     r0, r12                                     # 00e28
-bne+    new_world_setup_0x968                        # 00e2c
+bne+    new_world_0x968                              # 00e2c
 sync                                                 # 00e30
 isync                                                # 00e34
 stw      r0,  0x0f38( r1) # kdp.u32_cpuinfo_icache_size
@@ -1268,54 +1254,54 @@ li      r17,  0x00                                   # 00e3c
 li      r18,  0x200                                  # 00e40
 li      r19,  0x00                                   # 00e44
 li      r16, -0x01                                   # 00e48
-b       new_world_setup_0x9b4                        # 00e4c
+b       new_world_0x9b4                              # 00e4c
 
-new_world_setup_0x9a8:
+new_world_0x9a8:
 addi    r17, r17,  0x200                             # 00e50
 cmplw   r17, r15                                     # 00e54
-bge-    new_world_setup_0x9c8                        # 00e58
+bge-    new_world_0x9c8                              # 00e58
 
-new_world_setup_0x9b4:
+new_world_0x9b4:
 mtlr    r20                                          # 00e5c
 blrl                                                 # 00e60
-ble+    new_world_setup_0x9a8                        # 00e64
+ble+    new_world_0x9a8                              # 00e64
 addi    r12, r17, -0x200                             # 00e68
 stw     r12,  0x0f38( r1) # kdp.u32_cpuinfo_icache_size
 
-new_world_setup_0x9c8:
+new_world_0x9c8:
 li      r12,  0x01                                   # 00e70
 sth     r12,  0x0f4c( r1) # kdp.u16_cpuinfo_icache_assoc
 lwz     r18,  0x0f38( r1) # kdp.u32_cpuinfo_icache_size
 mr      r17, r18                                     # 00e7c
 li      r19,  0x00                                   # 00e80
 li      r16, -0x01                                   # 00e84
-b       new_world_setup_0x9f0                        # 00e88
+b       new_world_0x9f0                              # 00e88
 
-new_world_setup_0x9e4:
+new_world_0x9e4:
 add     r17, r17, r18                                # 00e8c
 cmplw   r17, r15                                     # 00e90
-bge-    new_world_setup_0xa08                        # 00e94
+bge-    new_world_0xa08                              # 00e94
 
-new_world_setup_0x9f0:
+new_world_0x9f0:
 mtlr    r20                                          # 00e98
 blrl                                                 # 00e9c
-ble+    new_world_setup_0x9e4                        # 00ea0
+ble+    new_world_0x9e4                              # 00ea0
 subf    r17, r18, r17                                # 00ea4
 divwu   r12, r17, r18                                # 00ea8
 sth     r12,  0x0f4c( r1) # kdp.u16_cpuinfo_icache_assoc
 
-new_world_setup_0xa08:
+new_world_0xa08:
 add     r12, r13, r15                                # 00eb0
 mr      r11, r20                                     # 00eb4
 
-new_world_setup_0xa10:
+new_world_0xa10:
 lwzu     r9, -0x0004(r11)                            # 00eb8
 stwu     r9, -0x0200(r12)                            # 00ebc
 cmpw    r12, r13                                     # 00ec0
 dcbst    r0, r12                                     # 00ec4
 sync                                                 # 00ec8
 icbi     r0, r12                                     # 00ecc
-bne+    new_world_setup_0xa10                        # 00ed0
+bne+    new_world_0xa10                              # 00ed0
 sync                                                 # 00ed4
 isync                                                # 00ed8
 lwz     r17,  0x0f38( r1) # kdp.u32_cpuinfo_icache_size
@@ -1325,11 +1311,11 @@ slwi    r17, r17,  0x01                              # 00ee8
 add     r12, r13, r17                                # 00eec
 addi    r11, r21, -0x04                              # 00ef0
 
-new_world_setup_0xa4c:
+new_world_0xa4c:
 subf    r12, r18, r12                                # 00ef4
 li      r14,  0x400                                  # 00ef8
 
-new_world_setup_0xa54:
+new_world_0xa54:
 rlwinm. r14, r14, 31,  0, 28                         # 00efc
 lwzx     r9, r12, r14                                # 00f00
 lis     r10,       0x4e80                            # 00f04
@@ -1348,9 +1334,9 @@ stwu     r9,  0x0004(r11)                            # 00f34
 dcbst   r12, r14                                     # 00f38
 sync                                                 # 00f3c
 icbi    r12, r14                                     # 00f40
-bne+    new_world_setup_0xa54                        # 00f44
+bne+    new_world_0xa54                              # 00f44
 cmpw    r12, r13                                     # 00f48
-bne+    new_world_setup_0xa4c                        # 00f4c
+bne+    new_world_0xa4c                              # 00f4c
 sync                                                 # 00f50
 isync                                                # 00f54
 mr      r19, r18                                     # 00f58
@@ -1358,78 +1344,95 @@ slwi    r18, r18,  0x01                              # 00f5c
 li      r14,  0x200                                  # 00f60
 add     r19, r19, r14                                # 00f64
 li      r16, -0x01                                   # 00f68
-b       new_world_setup_0xadc                        # 00f6c
+b       new_world_0xadc                              # 00f6c
 
-new_world_setup_0xac8:
+new_world_0xac8:
 li      r12,  0x08                                   # 00f70
 cmplw   r14, r12                                     # 00f74
-ble-    new_world_setup_0xaec                        # 00f78
+ble-    new_world_0xaec                              # 00f78
 srwi    r14, r14,  0x01                              # 00f7c
 subf    r19, r14, r19                                # 00f80
 
-new_world_setup_0xadc:
+new_world_0xadc:
 mtlr    r20                                          # 00f84
 blrl                                                 # 00f88
-ble+    new_world_setup_0xac8                        # 00f8c
+ble+    new_world_0xac8                              # 00f8c
 slwi    r12, r14,  0x01                              # 00f90
 
-new_world_setup_0xaec:
+new_world_0xaec:
 sth     r12,  0x0f42( r1) # kdp.u16_cpuinfo_icache_line_size
 srwi    r18, r18,  0x01                              # 00f98
 add     r12, r13, r17                                # 00f9c
 addi    r11, r21, -0x04                              # 00fa0
 
-new_world_setup_0xafc:
+new_world_0xafc:
 subf    r12, r18, r12                                # 00fa4
 li      r14,  0x400                                  # 00fa8
 
-new_world_setup_0xb04:
+new_world_0xb04:
 rlwinm. r14, r14, 31,  0, 28                         # 00fac
 lwzu     r9,  0x0004(r11)                            # 00fb0
 stwx     r9, r12, r14                                # 00fb4
 addi    r14, r14,  0x04                              # 00fb8
 lwzu     r9,  0x0004(r11)                            # 00fbc
 stwx     r9, r12, r14                                # 00fc0
-bne+    new_world_setup_0xb04                        # 00fc4
+bne+    new_world_0xb04                              # 00fc4
 cmpw    r12, r13                                     # 00fc8
-bne+    new_world_setup_0xafc                        # 00fcc
+bne+    new_world_0xafc                              # 00fcc
 
 skip_cache_hackery_never:
 # r1 = kdp
-# r3 = ConfigInfo
-# r4 = processor_info
-# r5 = sys_info
-# r6 = boot_r6
-b       all_world_setup                              # 00fd0
-.long   0x39400003                                   # 00fd4
-.long   0x39800800                                   # 00fd8
-.long   0x7d8903a6                                   # 00fdc
-.long   0x7e736a14                                   # 00fe0
-.long   0x39600000                                   # 00fe4
-.long   0x7d7603a6                                   # 00fe8
-.long   0x7d915850                                   # 00fec
-.long   0x7d8cfe70                                   # 00ff0
-.long   0x7d6b6038                                   # 00ff4
-.long   0x7d8d58ae                                   # 00ff8
-.long   0x7d8c6214                                   # 00ffc
-.long   0x7d9358ae                                   # 01000
-.long   0x7d8c6214                                   # 01004
-.long   0x7d6b9214                                   # 01008
-.long   0x4200ffe0                                   # 0100c
-.long   0x7e6d9850                                   # 01010
-.long   0x7d9602a6                                   # 01014
-.long   0x7d8c00d0                                   # 01018
-.long   0x7c0c8040                                   # 0101c
-.long   0x41810008                                   # 01020
-.long   0x7d906378                                   # 01024
-.long   0x558bc9fe                                   # 01028
-.long   0x7d8b6050                                   # 0102c
-.long   0x7c0c8000                                   # 01030
-.long   0x4c810020                                   # 01034
-.long   0x354affff                                   # 01038
-.long   0x4181ff9c                                   # 0103c
-.long   0x7c0c8000                                   # 01040
-.long   0x4e800020                                   # 01044
+b       new_world_final_common                       # 00fd0
+
+
+
+/***********************************************************
+
+                       copied_code_1                        
+
+************************************************************
+
+Xrefs:
+new_world
+
+***********************************************************/
+
+copied_code_1:  /* < outside referer */
+li      r10,  0x03                                   # 00fd4
+
+copied_code_1_0x4:
+li      r12,  0x800                                  # 00fd8
+mtctr   r12                                          # 00fdc
+add     r19, r19, r13                                # 00fe0
+li      r11,  0x00                                   # 00fe4
+mtspr   22/*dec*/, r11                               # 00fe8
+
+copied_code_1_0x18:
+subf    r12, r17, r11                                # 00fec
+srawi   r12, r12,  0x1f                              # 00ff0
+and     r11, r11, r12                                # 00ff4
+lbzx    r12, r13, r11                                # 00ff8
+add     r12, r12, r12                                # 00ffc
+lbzx    r12, r19, r11                                # 01000
+add     r12, r12, r12                                # 01004
+add     r11, r11, r18                                # 01008
+bdnz+   copied_code_1_0x18                           # 0100c
+subf    r19, r13, r19                                # 01010
+mfspr   r12, 22/*dec*/                               # 01014
+neg     r12, r12                                     # 01018
+cmplw   r12, r16                                     # 0101c
+bgt-    copied_code_1_0x54                           # 01020
+mr      r16, r12                                     # 01024
+
+copied_code_1_0x54:
+srwi    r11, r12,  0x07                              # 01028
+subf    r12, r11, r12                                # 0102c
+cmpw    r12, r16                                     # 01030
+blelr-                                               # 01034
+addic.  r10, r10, -0x01                              # 01038
+bgt+    copied_code_1_0x4                            # 0103c
+cmpw    r12, r16                                     # 01040
+blr                                                  # 01044
 .long   0x4c00012c                                   # 01048
 .long   0x4c00012c                                   # 0104c
 .long   0x4c00012c                                   # 01050
@@ -1446,28 +1449,35 @@ b       all_world_setup                              # 00fd0
 .long   0x4c00012c                                   # 0107c
 .long   0x4c00012c                                   # 01080
 .long   0x4c00012c                                   # 01084
+copied_code_1_end:  /* < outside referer */
 
 
 
 /***********************************************************
 
-                       major_0x01088                        
+                       copied_code_2                        
+
+************************************************************
+
+Xrefs:
+new_world
 
 ***********************************************************/
 
-.long   0x39400003                                   # 01088
-.long   0x7d2802a6                                   # 0108c
-.long   0x39800800                                   # 01090
-.long   0x7d8903a6                                   # 01094
-.long   0x7e736a14                                   # 01098
-.long   0x39600000                                   # 0109c
-.long   0x7d7603a6                                   # 010a0
-.long   0x7d915850                                   # 010a4
-.long   0x7d8cfe70                                   # 010a8
-.long   0x7d6b6038                                   # 010ac
-.long   0x7d8d5a14                                   # 010b0
-.long   0x7d8803a6                                   # 010b4
-.long   0x4e800021                                   # 010b8
+copied_code_2:  /* < outside referer */
+li      r10,  0x03                                   # 01088
+mflr     r9                                          # 0108c
+li      r12,  0x800                                  # 01090
+mtctr   r12                                          # 01094
+add     r19, r19, r13                                # 01098
+li      r11,  0x00                                   # 0109c
+mtspr   22/*dec*/, r11                               # 010a0
+subf    r12, r17, r11                                # 010a4
+srawi   r12, r12,  0x1f                              # 010a8
+and     r11, r11, r12                                # 010ac
+add     r12, r13, r11                                # 010b0
+mtlr    r12                                          # 010b4
+blrl                                                 # 010b8
 .long   0x7d935a14                                   # 010bc
 .long   0x7d8803a6                                   # 010c0
 .long   0x4e800021                                   # 010c4
@@ -1504,6 +1514,7 @@ b       all_world_setup                              # 00fd0
 .long   0x4c00012c                                   # 01140
 .long   0x4c00012c                                   # 01144
 .long   0x4c00012c                                   # 01148
+copied_code_2_end:  /* < outside referer */
 
 
 
@@ -1617,23 +1628,6 @@ b       all_world_setup                              # 00fd0
 
 For 7400(only) and earlier CPUs. Overwrites info in KDP copied from bootloader.
 
-CPU info table (x9 @ 36 bytes each):
-    uint32 Page size
-    uint32 D-cache size
-    uint32 I-cache size
-    uint16 Coherency block size
-    uint16 Reservation granule size
-    uint16 Unified caches
-    uint16 I-cache line size
-    uint16 D-cache line size
-    uint16 D-cache block size touch
-    uint16 I-cache block size
-    uint16 D-cache block size
-    uint16 I-cache assoc
-    uint16 D-cache assoc
-    uint16 TLB total size
-    uint16 TLB assoc
-
 ***********************************************************/
 
 cpuinfo_override_table:  /* < outside referer */
@@ -1723,7 +1717,7 @@ cpuinfo_override_table:  /* < outside referer */
 
 /***********************************************************
 
-                all_world_setup_with_old_cpu                
+                new_world_hardcode_cpu_info                 
 
 ************************************************************
 
@@ -1732,7 +1726,7 @@ All G3s and earler, plus the G4-7400 (only). Overwrite part of the CPU info that
 ************************************************************
 
 Xrefs:
-new_world_setup
+new_world
 
 ************************************************************
 
@@ -1746,41 +1740,31 @@ new_world_setup
 
 ***********************************************************/
 
-all_world_setup_with_old_cpu:  /* < outside referer */
+new_world_hardcode_cpu_info:  /* < outside referer */
 addic.   r9,  r9, -0x04                              # 01350
 lwzx    r12, r11,  r9                                # 01354
 stwx    r12, r10,  r9                                # 01358
-bgt+    all_world_setup_with_old_cpu                 # 0135c
+bgt+    new_world_hardcode_cpu_info                  # 0135c
 
 
 
 /***********************************************************
 
-                      all_world_setup                       
-
-************************************************************
-
-Why in the hell does this get run twice?
+                   new_world_final_common                   
 
 ************************************************************
 
 Xrefs:
-replace_old_kernel
-new_world_setup
-all_world_setup_with_old_cpu
-handle_ResetSystem_trap
+new_world
+new_world_hardcode_cpu_info
 
 ************************************************************
 
 > r1    = kdp
-> r3    = ConfigInfo
-> r4    = processor_info
-> r5    = sys_info
-> r6    = boot_r6
 
 ***********************************************************/
 
-all_world_setup:  /* < outside referer */
+new_world_final_common:  /* < outside referer */
 li       r8,  0x112                                  # 01360
 sth      r8,  0x0fdc( r1) # kdp.0xfdc                # 01364
 lwz      r9,  0x0f2c( r1) # kdp.u32_timebase_freq    # 01368
@@ -1834,10 +1818,55 @@ li       r2,  0x00                                   # 01424
 li       r3,  0x00                                   # 01428
 li       r4,  0x00                                   # 0142c
 
-all_world_setup_second_attempt:  /* < outside referer */
+
+
+/***********************************************************
+
+                      setup_new_world                       
+
+************************************************************
+
+Sometimes (?) on NewWorld machines, blue issues a 68k reset trap to reinit the kernel. Rene says that this is necessary to set up address spaces.
+
+************************************************************
+
+Xrefs:
+new_world_final_common
+non_skeleton_reset_trap
+
+************************************************************
+
+> r1    = kdp
+
+***********************************************************/
+
+setup_new_world:  /* < outside referer */
 crclr   4*cr5 + eq                                   # 01430
 
-all_world_setup_0xd4:  /* < outside referer */
+
+
+/***********************************************************
+
+                           setup                            
+
+************************************************************
+
+Final common pathway. Prints a whole heap of stuff.
+cr5.eq is set for OldWorld, unset for NewWorld
+
+************************************************************
+
+Xrefs:
+replace_old_kernel
+setup_new_world
+
+************************************************************
+
+> r1    = kdp
+
+***********************************************************/
+
+setup:  /* < outside referer */
 mfxer   r17                                          # 01434
 stw     r17,  0x00d4( r6)                            # 01438
 bl      1f                                           # 0143c
@@ -1865,8 +1894,6 @@ bl      1f                                           # 014a0
 .align  2                                            # 014ad
 1: mflr  r8                                          # 014b0
 bl      print_string                                 # 014b4
-
-#   memcpy(*(r1-0x20) + 0xfc0, r1 + 0xfc0, 64);
 lis     r22,       0x00                              # 014b8
 ori     r22, r22,  0x40                              # 014bc
 lwz      r9, -0x0020( r1) # kdp.irp                  # 014c0
@@ -1878,18 +1905,11 @@ addic.  r22, r22, -0x04                              # 014cc
 lwzx     r0, r22,  r8                                # 014d0
 stwx     r0, r22,  r9                                # 014d4
 bgt+    copyloop                                     # 014d8
-
-#   done
 lwz     r26,  0x0630( r1) # kdp.ConfigInfo           # 014dc
 
 #   r25 = phys kernel code base (0x00f10000 on NW)
 lwz     r25,  0x064c( r1) # kdp.phys_kern_base       # 014e0
 lwz     r18,  0x0684( r1) # kdp.0x684                # 014e4
-
-#   fill with debugger offset, 48 copies at once:
-#   # r1[0x360:5a0]
-#   # r1[-0x8d0:-0x810]
-#   # r1[-0x750:-0x690]
 lis     r23,      dbgr@h                             # 014e8
 ori     r23, r23, dbgr@l                             # 014ec
 add     r23, r23, r25                                # 014f0
@@ -1928,8 +1948,6 @@ li      r22,  0xc0                                   # 01528
 # r22 = len in bytes
 # r23 = fillword
 bl      wordfill                                     # 0152c
-
-#   fill r1[-0x690:-0x5d0] with rfi func offset
 lis     r23,      rfi_to_kern@h                      # 01530
 ori     r23, r23, rfi_to_kern@l                      # 01534
 add     r23, r23, r25                                # 01538
@@ -1940,14 +1958,9 @@ li      r22,  0xc0                                   # 01540
 # r22 = len in bytes
 # r23 = fillword
 bl      wordfill                                     # 01544
-
-#   set SPRG3 to offset of offset of debugger
 addi     r9,  r1,  0x360 # kdp.0x360                 # 01548
 mtspr   275/*sprg3*/,  r9                            # 0154c
 addi     r8,  r1,  0x420 # kdp.0x420                 # 01550
-
-#   r8 = r1 + 0x420; r9 = r1 + 0x360;
-#   (each points to a 48*uint32 block of dbgr ptrs)
 lis     r23,      dbgr@h                             # 01554
 ori     r23, r23, dbgr@l                             # 01558
 add     r23, r23, r25                                # 0155c
@@ -2022,9 +2035,7 @@ lis     r23,      major_0x04300@h                    # 0166c
 ori     r23, r23, major_0x04300@l                    # 01670
 add     r23, r23, r25                                # 01674
 stw     r23,  0x005c( r9) # kdp.0x3bc                # 01678
-stw     r23,  0x005c( r8)                            # 0167c
-
-#   now r8 = r1 + 0x4e0 (not using r9 now)
+stw     r23,  0x005c( r8) # kdp.0x47c                # 0167c
 addi     r8,  r1,  0x4e0 # kdp.0x4e0                 # 01680
 lis     r23,      dbgr@h                             # 01684
 ori     r23, r23, dbgr@l                             # 01688
@@ -2045,8 +2056,6 @@ stw     r23,  0x0030( r8) # kdp.0x510                # 016c0
 lis     r23,      major_0x04a20@h                    # 016c4
 ori     r23, r23, major_0x04a20@l                    # 016c8
 add     r23, r23, r25                                # 016cc
-
-#   now r8 = r1 - 0x8d0
 addi     r8,  r1, -0x8d0 # kdp.-0x8d0                # 016d0
 li      r22,  0xc0                                   # 016d4
 
@@ -2071,34 +2080,29 @@ ori     r23, r23, major_0x03460@l                    # 01710
 add     r23, r23, r25                                # 01714
 stw     r23,  0x0018( r8) # kdp.-0x8b8               # 01718
 bl      dbgr_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36
-
-#   now r8 = r1 - 0x750
 addi     r8,  r1, -0x750 # kdp.-0x750                # 01720
 lis     r23,      dbgr@h                             # 01724
 ori     r23, r23, dbgr@l                             # 01728
 add     r23, r23, r25                                # 0172c
-stw     r23,  0x0004( r8) # kdp.-0x8cc               # 01730
+stw     r23,  0x0004( r8) # kdp.-0x74c               # 01730
 lis     r23,      major_0x03940_0xc4@h               # 01734
 ori     r23, r23, major_0x03940_0xc4@l               # 01738
 add     r23, r23, r25                                # 0173c
-stw     r23,  0x0008( r8) # kdp.-0x8c8               # 01740
+stw     r23,  0x0008( r8) # kdp.-0x748               # 01740
 lis     r23,      dsi_vector@h                       # 01744
 ori     r23, r23, dsi_vector@l                       # 01748
 add     r23, r23, r25                                # 0174c
-stw     r23,  0x000c( r8) # kdp.-0x8c4               # 01750
+stw     r23,  0x000c( r8) # kdp.-0x744               # 01750
 lis     r23,      sc_vector@h                        # 01754
 ori     r23, r23, sc_vector@l                        # 01758
 add     r23, r23, r25                                # 0175c
-stw     r23,  0x0030( r8) # kdp.-0x8a0               # 01760
+stw     r23,  0x0030( r8) # kdp.-0x720               # 01760
 lis     r23,      major_0x046d0@h                    # 01764
 ori     r23, r23, major_0x046d0@l                    # 01768
 add     r23, r23, r25                                # 0176c
-
-#   now r8 = r1 + 0x5f0
 addi     r8,  r1,  0x5f0 # kdp.0x5f0                 # 01770
 li      r22,  0x40                                   # 01774
 
-#   set r8(=r1+0x5f0) to ptr to 0x46d0 x16
 loop_memset:
 addic.  r22, r22, -0x04                              # 01778
 stwx    r23,  r8, r22                                # 0177c
@@ -2111,8 +2115,8 @@ lis     r23,      major_0x043a0@h                    # 01794
 ori     r23, r23, major_0x043a0@l                    # 01798
 add     r23, r23, r25                                # 0179c
 stw     r23,  0x0004( r8) # kdp.0x5f4                # 017a0
-lis     r23,      trap_vector@h                      # 017a4
-ori     r23, r23, trap_vector@l                      # 017a8
+lis     r23,      reset_trap@h                       # 017a4
+ori     r23, r23, reset_trap@l                       # 017a8
 add     r23, r23, r25                                # 017ac
 stw     r23,  0x0008( r8) # kdp.0x5f8                # 017b0
 lis     r23,      major_0x08640@h                    # 017b4
@@ -2374,19 +2378,19 @@ addi     r9, r26,  0x2c8                             # 01b04
 addi     r8,  r1,  0x27c # kdp.0x27c                 # 01b08
 li      r22,  0x80                                   # 01b0c
 
-all_world_setup_0x7b0:
+setup_0x6dc:
 lwzu    r20,  0x0004( r9)                            # 01b10
 lwzu    r21,  0x0004( r9)                            # 01b14
 stwu    r20,  0x0004( r8)                            # 01b18
 rlwinm  r23, r21,  0, 23, 21                         # 01b1c
 cmpw    r21, r23                                     # 01b20
-beq-    all_world_setup_0x7cc                        # 01b24
+beq-    setup_0x6f8                                  # 01b24
 add     r21, r23, r26                                # 01b28
 
-all_world_setup_0x7cc:
+setup_0x6f8:
 addic.  r22, r22, -0x08                              # 01b2c
 stwu    r21,  0x0004( r8)                            # 01b30
-bgt+    all_world_setup_0x7b0                        # 01b34
+bgt+    setup_0x6dc                                  # 01b34
 li       r8,  0x00                                   # 01b38
 lwz      r9, -0x041c( r1) # kdp.system_address_space # 01b3c
 bl      NKCreateAddressSpaceSub                      # 01b40
@@ -2670,7 +2674,7 @@ stw     r30,  0x0070(r31)                            # 01fc0
 lwz      r7, -0x0010( r1) # kdp.-0x10                # 01fc4
 lwz     r26,  0x0630( r1) # kdp.ConfigInfo           # 01fc8
 lwz     r18,  0x0684( r1) # kdp.0x684                # 01fcc
-beq-     cr5, all_world_setup_0xca0                  # 01fd0
+beq-     cr5, setup_0xbcc                            # 01fd0
 mfspr    r8, 25/*sdr1*/                              # 01fd4
 rlwinm  r22,  r8, 16,  7, 15                         # 01fd8
 rlwinm   r8,  r8,  0,  0, 15                         # 01fdc
@@ -2680,35 +2684,35 @@ stw     r22,  0x06a0( r1) # kdp.0x6a0                # 01fe8
 li      r23,  0x00                                   # 01fec
 addi    r22, r22,  0x40                              # 01ff0
 
-all_world_setup_0xc94:
+setup_0xbc0:
 addic.  r22, r22, -0x04                              # 01ff4
 stwx    r23,  r8, r22                                # 01ff8
-bgt+    all_world_setup_0xc94                        # 01ffc
+bgt+    setup_0xbc0                                  # 01ffc
 
-all_world_setup_0xca0:
+setup_0xbcc:
 bl      major_0x055e0                                # 02000
-beq-     cr5, all_world_setup_0xce4                  # 02004
+beq-     cr5, setup_0xc10                            # 02004
 lwz      r9,  0x00bc(r26)                            # 02008
 lwz     r22,  0x00b8(r26)                            # 0200c
 add      r9,  r9, r26                                # 02010
 
-all_world_setup_0xcb4:
+setup_0xbe0:
 addi    r22, r22, -0x04                              # 02014
 lwzx    r21,  r9, r22                                # 02018
 andi.   r23, r21,  0xa00                             # 0201c
 cmpwi   r23,  0x200                                  # 02020
-bne-    all_world_setup_0xcd0                        # 02024
+bne-    setup_0xbfc                                  # 02024
 rlwinm  r21, r21,  0, 23, 21                         # 02028
 add     r21, r21, r26                                # 0202c
 
-all_world_setup_0xcd0:
+setup_0xbfc:
 stwx    r21, r18, r22                                # 02030
 addic.  r22, r22, -0x04                              # 02034
 lwzx    r20,  r9, r22                                # 02038
 stwx    r20, r18, r22                                # 0203c
-bgt+    all_world_setup_0xcb4                        # 02040
+bgt+    setup_0xbe0                                  # 02040
 
-all_world_setup_0xce4:
+setup_0xc10:
 lwz      r8,  0x00c0(r26)                            # 02044
 add      r8, r18,  r8                                # 02048
 lis     r19,      -0x01                              # 0204c
@@ -2741,7 +2745,7 @@ addi     r9, r26,  0xc8                              # 020b4
 addi     r8,  r1,  0x7c # kdp.0x7c                   # 020b8
 li      r22,  0x200                                  # 020bc
 
-all_world_setup_0xd60:
+setup_0xc8c:
 lwzu    r23,  0x0004( r9)                            # 020c0
 addic.  r22, r22, -0x08                              # 020c4
 add     r23, r18, r23                                # 020c8
@@ -2749,7 +2753,7 @@ stwu    r23,  0x0004( r8)                            # 020cc
 lwzu    r23,  0x0004( r9)                            # 020d0
 oris    r23, r23,  0x2000                            # 020d4
 stwu    r23,  0x0004( r8)                            # 020d8
-bgt+    all_world_setup_0xd60                        # 020dc
+bgt+    setup_0xc8c                                  # 020dc
 addi    r23,  r1,  0x80 # kdp.0x80                   # 020e0
 stw     r23,  0x05c8( r1) # kdp.0x5c8                # 020e4
 lwz     r23,  0x034c(r26)                            # 020e8
@@ -2768,31 +2772,31 @@ lwz     r23,  0x0358(r26)                            # 02118
 stw     r23,  0x05e4( r1) # kdp.0x5e4                # 0211c
 li      r22,  0x00                                   # 02120
 addi    r19,  r1,  0x78 # kdp.0x78                   # 02124
-b       all_world_setup_0xdd4                        # 02128
+b       setup_0xd00                                  # 02128
 
-all_world_setup_0xdcc:
+setup_0xcf8:
 addi     r8,  r8,  0x08                              # 0212c
-b       all_world_setup_0xdd8                        # 02130
+b       setup_0xd04                                  # 02130
 
-all_world_setup_0xdd4:
+setup_0xd00:
 lwzu     r8,  0x0008(r19)                            # 02134
 
-all_world_setup_0xdd8:
+setup_0xd04:
 lwz     r30,  0x0000( r8)                            # 02138
 lwz     r31,  0x0004( r8)                            # 0213c
 cmplwi   cr7, r30,  0xffff                           # 02140
 rlwinm. r31, r31,  0, 20, 21                         # 02144
-bgt-     cr7, all_world_setup_0xe04                  # 02148
+bgt-     cr7, setup_0xd30                            # 02148
 cmpwi    cr6, r31,  0xc00                            # 0214c
-beq-    all_world_setup_0xe04                        # 02150
-beq+     cr6, all_world_setup_0xdcc                  # 02154
+beq-    setup_0xd30                                  # 02150
+beq+     cr6, setup_0xcf8                            # 02154
 add     r22, r22, r30                                # 02158
 addi    r22, r22,  0x01                              # 0215c
-beq+     cr7, all_world_setup_0xdd4                  # 02160
+beq+     cr7, setup_0xd00                            # 02160
 
-all_world_setup_0xe04:
+setup_0xd30:
 stw     r22,  0x06b4( r1) # kdp.VMMaxVirtualPages    # 02164
-beq-     cr5, all_world_setup_0xe80                  # 02168
+beq-     cr5, setup_0xdac                            # 02168
 lwz     r21,  0x0638( r1) # kdp.0x638                # 0216c
 lwz     r20,  0x063c( r1) # kdp.0x63c                # 02170
 stw     r21,  0x06b0( r1) # kdp.0x6b0                # 02174
@@ -2808,31 +2812,31 @@ rlwimi  r30, r23, 29, 27, 27                         # 02198
 rlwimi  r30, r23, 27, 28, 28                         # 0219c
 li      r23,  0x1a                                   # 021a0
 
-all_world_setup_0xe44:
+setup_0xd70:
 addic.  r23, r23, -0x01                              # 021a4
-blt-    all_world_setup_0xe80                        # 021a8
+blt-    setup_0xdac                                  # 021a8
 lwzu    r31,  0x0008(r19)                            # 021ac
 lwz     r22,  0x0004(r19)                            # 021b0
 or      r31, r31, r30                                # 021b4
 
-all_world_setup_0xe58:
+setup_0xd84:
 cmplwi  r22,  0x1000                                 # 021b8
 cmplw    cr6, r31, r21                               # 021bc
 cmplw    cr7, r31, r20                               # 021c0
 addi    r22, r22, -0x1000                            # 021c4
-blt+    all_world_setup_0xe44                        # 021c8
-blt-     cr6, all_world_setup_0xe74                  # 021cc
-blt-     cr7, all_world_setup_0xe78                  # 021d0
+blt+    setup_0xd70                                  # 021c8
+blt-     cr6, setup_0xda0                            # 021cc
+blt-     cr7, setup_0xda4                            # 021d0
 
-all_world_setup_0xe74:
+setup_0xda0:
 stwu    r31,  0x0004(r29)                            # 021d4
 
-all_world_setup_0xe78:
+setup_0xda4:
 addi    r31, r31,  0x1000                            # 021d8
-b       all_world_setup_0xe58                        # 021dc
+b       setup_0xd84                                  # 021dc
 
-all_world_setup_0xe80:
-beq-     cr5, all_world_setup_0xf04                  # 021e0
+setup_0xdac:
+beq-     cr5, setup_0xe30                            # 021e0
 subf    r22, r21, r29                                # 021e4
 addi     r8, r22,  0x1000                            # 021e8
 srwi    r17, r22,  0x0d                              # 021ec
@@ -2852,7 +2856,7 @@ bl      1f                                           # 0222c
 1: mflr  r8                                          # 0223c
 bl      print_string                                 # 02240
 
-all_world_setup_0xee4:
+setup_0xe10:
 lwz      r8,  0x0000(r29)                            # 02244
 rlwinm   r8,  r8,  0,  0, 19                         # 02248
 
@@ -2862,14 +2866,14 @@ bl      free_list_add_page                           # 0224c
 addi    r17, r17, -0x01                              # 02250
 addi    r29, r29, -0x04                              # 02254
 cmpwi   r17,  0x00                                   # 02258
-bgt+    all_world_setup_0xee4                        # 0225c
-b       all_world_setup_0xf90                        # 02260
+bgt+    setup_0xe10                                  # 0225c
+b       setup_0xebc                                  # 02260
 
-all_world_setup_0xf04:
+setup_0xe30:
 lwz      r8,  0x05a8( r1) # kdp.0x5a8                # 02264
 addi    r18,  r1,  0x2000 # kdp.0x2000               # 02268
 subf.    r8, r18,  r8                                # 0226c
-blt-    all_world_setup_0xf90                        # 02270
+blt-    setup_0xebc                                  # 02270
 addi     r8,  r8,  0x1000                            # 02274
 srwi    r17,  r8,  0x0c                              # 02278
 bl      1f                                           # 0227c
@@ -2887,7 +2891,7 @@ bl      1f                                           # 022b4
 1: mflr  r8                                          # 022d0
 bl      print_string                                 # 022d4
 
-all_world_setup_0xf78:
+setup_0xea4:
 rlwinm   r8, r18,  0,  0, 19                         # 022d8
 
 # r1 = kdp
@@ -2896,9 +2900,9 @@ bl      free_list_add_page                           # 022dc
 addi    r17, r17, -0x01                              # 022e0
 addi    r18, r18,  0x1000                            # 022e4
 cmpwi   r17,  0x00                                   # 022e8
-bgt+    all_world_setup_0xf78                        # 022ec
+bgt+    setup_0xea4                                  # 022ec
 
-all_world_setup_0xf90:
+setup_0xebc:
 bl      1f                                           # 022f0
 .ascii  "VMMaxVirtualPages: "                        # 022f4
 .short  0                                            # 02307
@@ -2939,7 +2943,7 @@ bl      1f                                           # 02394
 .align  2                                            # 0239c
 1: mflr  r8                                          # 0239c
 bl      print_string                                 # 023a0
-beq-     cr5, all_world_setup_0x11fc                 # 023a4
+beq-     cr5, finish_old_world                       # 023a4
 subf    r22, r21, r29                                # 023a8
 lwz      r8,  0x06b4( r1) # kdp.VMMaxVirtualPages    # 023ac
 slwi     r8,  r8,  0x02                              # 023b0
@@ -2947,10 +2951,10 @@ cmplw   r22,  r8                                     # 023b4
 addi    r19, r22,  0x04                              # 023b8
 srwi    r19, r19,  0x02                              # 023bc
 stw     r19,  0x06ac( r1) # kdp.logi_pages           # 023c0
-blt-    all_world_setup_0x106c                       # 023c4
+blt-    setup_0xf98                                  # 023c4
 addi    r22,  r8, -0x04                              # 023c8
 
-all_world_setup_0x106c:
+setup_0xf98:
 li      r30,  0x00                                   # 023cc
 lwz      r8, -0x0020( r1) # kdp.irp                  # 023d0
 addi    r19, r22,  0x04                              # 023d4
@@ -2964,7 +2968,7 @@ stw     r19,  0x06a8( r1) # kdp.phys_pages           # 023f0
 addi    r29,  r1,  0x6bc # kdp.0x6bc                 # 023f4
 addi    r19,  r1,  0x78 # kdp.0x78                   # 023f8
 
-all_world_setup_0x109c:
+setup_0xfc8:
 cmplwi  r22,  0xffff                                 # 023fc
 lwzu     r8,  0x0008(r19)                            # 02400
 rotlwi  r31, r21,  0x0a                              # 02404
@@ -2974,14 +2978,14 @@ stw     r31,  0x0004( r8)                            # 02410
 stwu    r21,  0x0004(r29)                            # 02414
 addis   r21, r21,  0x04                              # 02418
 addis   r22, r22, -0x01                              # 0241c
-bgt+    all_world_setup_0x109c                       # 02420
+bgt+    setup_0xfc8                                  # 02420
 sth     r22,  0x0002( r8)                            # 02424
 lwz     r17,  0x06a8( r1) # kdp.phys_pages           # 02428
 lwz     r18,  0x06ac( r1) # kdp.logi_pages           # 0242c
 stw     r17,  0x06ac( r1) # kdp.logi_pages           # 02430
 subf.   r18, r17, r18                                # 02434
 slwi    r31, r17,  0x0c                              # 02438
-ble-    all_world_setup_skip_grabbing_more_pages     # 0243c
+ble-    setup_skip_grabbing_more_pages               # 0243c
 bl      1f                                           # 02440
 .ascii  "Physical RAM greater than the initial logical area.^n Moving "
 .short  0                                            # 02481
@@ -2997,7 +3001,7 @@ bl      1f                                           # 02494
 1: mflr  r8                                          # 024c4
 bl      print_string                                 # 024c8
 
-all_world_setup_0x116c:
+setup_0x1098:
 mr       r8, r31                                     # 024cc
 
 # r1 = kdp
@@ -3006,9 +3010,9 @@ bl      free_list_add_page                           # 024d0
 addi    r31, r31,  0x1000                            # 024d4
 addi    r18, r18, -0x01                              # 024d8
 cmpwi   r18,  0x00                                   # 024dc
-bgt+    all_world_setup_0x116c                       # 024e0
+bgt+    setup_0x1098                                 # 024e0
 
-all_world_setup_skip_grabbing_more_pages:
+setup_skip_grabbing_more_pages:
 bl      convert_pmdts_to_areas                       # 024e4
 addi    r29,  r1,  0x5e0 # kdp.0x5e0                 # 024e8
 bl      major_0x05278                                # 024ec
@@ -3040,7 +3044,7 @@ bl      restore_registers_from_r14                   # 02554
 # r1 = kdp
 b       int_handler                                  # 02558
 
-all_world_setup_0x11fc:
+finish_old_world:
 addi    r29,  r1,  0x5e8 # kdp.0x5e8                 # 0255c
 bl      major_0x05278                                # 02560
 bl      major_0x055e0                                # 02564
@@ -3049,26 +3053,26 @@ bl      major_0x06870                                # 0256c
 lwz     r27,  0x0630( r1) # kdp.ConfigInfo           # 02570
 lwz     r27,  0x0094(r27)                            # 02574
 bl      major_0x05524                                # 02578
-beq-    all_world_setup_0x1234                       # 0257c
+beq-    setup_0x1160                                 # 0257c
 li      r30,  0x00                                   # 02580
 stw     r30, -0x0004(r29)                            # 02584
 eieio                                                # 02588
 stw     r30,  0x0000(r29)                            # 0258c
 sync                                                 # 02590
 
-all_world_setup_0x1234:
+setup_0x1160:
 bl      major_0x04c20                                # 02594
 lwz     r27,  0x0630( r1) # kdp.ConfigInfo           # 02598
 lwz     r27,  0x009c(r27)                            # 0259c
 bl      major_0x05524                                # 025a0
-beq-    all_world_setup_0x125c                       # 025a4
+beq-    setup_0x1188                                 # 025a4
 li      r30,  0x00                                   # 025a8
 stw     r30, -0x0004(r29)                            # 025ac
 eieio                                                # 025b0
 stw     r30,  0x0000(r29)                            # 025b4
 sync                                                 # 025b8
 
-all_world_setup_0x125c:
+setup_0x1188:
 bl      major_0x04c20                                # 025bc
 lwz     r27,  0x0630( r1) # kdp.ConfigInfo           # 025c0
 lwz     r27,  0x00a0(r27)                            # 025c4
@@ -3076,31 +3080,31 @@ lis     r19,       0x00                              # 025c8
 ori     r19, r19,  0xa000                            # 025cc
 subf    r19, r19, r27                                # 025d0
 
-all_world_setup_0x1274:
+setup_0x11a0:
 bl      major_0x05524                                # 025d4
-beq-    all_world_setup_0x1290                       # 025d8
+beq-    setup_0x11bc                                 # 025d8
 li      r30,  0x00                                   # 025dc
 stw     r30, -0x0004(r29)                            # 025e0
 eieio                                                # 025e4
 stw     r30,  0x0000(r29)                            # 025e8
 sync                                                 # 025ec
 
-all_world_setup_0x1290:
+setup_0x11bc:
 bl      major_0x04c20                                # 025f0
 cmplw   r27, r19                                     # 025f4
 addi    r27, r27, -0x1000                            # 025f8
-bgt+    all_world_setup_0x1274                       # 025fc
+bgt+    setup_0x11a0                                 # 025fc
 lwz     r27,  0x0630( r1) # kdp.ConfigInfo           # 02600
 lwz     r27,  0x00a4(r27)                            # 02604
 bl      major_0x05524                                # 02608
-beq-    all_world_setup_0x12c4                       # 0260c
+beq-    setup_0x11f0                                 # 0260c
 li      r30,  0x00                                   # 02610
 stw     r30, -0x0004(r29)                            # 02614
 eieio                                                # 02618
 stw     r30,  0x0000(r29)                            # 0261c
 sync                                                 # 02620
 
-all_world_setup_0x12c4:
+setup_0x11f0:
 bl      major_0x04c20                                # 02624
 bl      1f                                           # 02628
 .ascii  "Nanokernel replaced. Returning to boot process^n"
@@ -3110,13 +3114,19 @@ bl      1f                                           # 02628
 bl      print_string                                 # 02664
 addi     r9,  r1,  0x420 # kdp.0x420                 # 02668
 mtspr   275/*sprg3*/,  r9                            # 0266c
-b       continue_oldworld_boot                       # 02670
+
+# r1 = kdp
+b       old_world_rfi_to_userspace_boot              # 02670
 
 
 
 /***********************************************************
 
-                            fail                            
+               undo_failed_kernel_replacement               
+
+************************************************************
+
+Inits or reinits the log
 
 ************************************************************
 
@@ -3125,8 +3135,9 @@ replace_old_kernel
 
 ***********************************************************/
 
-fail:  /* < outside referer */
-bl      set_up_log                                   # 02674
+undo_failed_kernel_replacement:  /* < outside referer */
+# r1 = kdp
+bl      init_log                                     # 02674
 bl      1f                                           # 02678
 .ascii  "Nanokernel NOT replaced. Returning to boot process^n"
 .short  0                                            # 026b0
@@ -3142,20 +3153,24 @@ mtspr   275/*sprg3*/,  r9                            # 026c8
 
 /***********************************************************
 
-                          succeed                           
+              old_world_rfi_to_userspace_boot               
 
 ************************************************************
 
 Xrefs:
-all_world_setup
-fail
+setup
+undo_failed_kernel_replacement
+
+************************************************************
+
+> r1    = kdp
 
 ***********************************************************/
 
-continue_oldworld_boot:  /* < outside referer */
-lwz      r4,  0x0648( r1)                            # 026cc
-lwz      r8,  0x05a4( r1)                            # 026d0
-lwz      r9, -0x0964( r1)                            # 026d4
+old_world_rfi_to_userspace_boot:  /* < outside referer */
+lwz      r4,  0x0648( r1) # kdp.emu_e8c0             # 026cc
+lwz      r8,  0x05a4( r1) # kdp.0x5a4                # 026d0
+lwz      r9, -0x0964( r1) # kdp.-0x964               # 026d4
 addi     r8,  r8,  0x26e8                            # 026d8
 mtspr   26/*srr0*/,  r8                              # 026dc
 mtspr   27/*srr1*/,  r9                              # 026e0
@@ -3201,7 +3216,7 @@ If hands must be dirtied, put r22-r31 into EWA.
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 major_0x03200
 major_0x035a0
 major_0x03940
@@ -3509,7 +3524,7 @@ blr                                                  # 0293c
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 lock
 
 ***********************************************************/
@@ -3542,7 +3557,7 @@ b       dbgr                                         # 02940
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 major_0x035a0
 regsave_debug
 major_0x046e0
@@ -3561,7 +3576,7 @@ b       dbgr                                         # 02960
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 
 ***********************************************************/
 
@@ -3592,29 +3607,19 @@ b       major_0x0b0fc                                # 02964
 ************************************************************
 
 Xrefs:
-major_0x03200
+major_0x02ccc
 major_0x03460
 major_0x035a0
 major_0x03940
 major_0x03be0
 major_0x04180
-major_0x04240
-major_0x04300
 major_0x043a0
-trap_vector
 major_0x046d0
 major_0x046e0
 major_0x04700
 major_0x04b60
 major_0x05808
 major_0x06a14
-major_0x08794
-bootstrap_cpu
-major_0x0a600
-rtas_call
-major_0x0a8c0
-syscall_return
-major_0x154e0
 
 ***********************************************************/
 
@@ -3657,10 +3662,10 @@ lwz      r8,  0x0034( r1)                            # 02a08
 stw      r8,  0x016c( r6)                            # 02a0c
 cmpwi    cr1,  r9,  0x14                             # 02a10
 blt-     cr4, major_0x04a20_0x18                     # 02a14
-bne-     cr2, major_0x02980_0x65c                    # 02a18
+bne-     cr2, major_0x02ccc_0x310                    # 02a18
 blt-    major_0x02980_0xa8                           # 02a1c
 bne-     cr1, major_0x02980_0x178                    # 02a20
-b       major_0x02980_0x65c                          # 02a24
+b       major_0x02ccc_0x310                          # 02a24
 
 major_0x02980_0xa8:
 mfspr    r1, 272/*sprg0*/                            # 02a28
@@ -3686,7 +3691,7 @@ lwz     r12,  0x0648( r1)                            # 02a6c
 bsol-    cr6, major_0x02980_0x114                    # 02a70
 rlwinm   r7,  r7,  0, 29, 16                         # 02a74
 rlwimi  r11,  r7,  0, 20, 23                         # 02a78
-b       major_0x02980_0x330                          # 02a7c
+b       skeleton_key                                 # 02a7c
 
 major_0x02980_0x100:
 lwz      r2,  0x0008( r1)                            # 02a80
@@ -3695,7 +3700,7 @@ lwz      r4,  0x0010( r1)                            # 02a88
 lwz      r5,  0x0014( r1)                            # 02a8c
 blr                                                  # 02a90
 
-major_0x02980_0x114:
+major_0x02980_0x114:  /* < outside referer */
 mfspr    r8, 272/*sprg0*/                            # 02a94
 stw     r17,  0x0064( r6)                            # 02a98
 stw     r20,  0x0068( r6)                            # 02a9c
@@ -3719,17 +3724,17 @@ addi     r9,  r9,  0x01                              # 02ad8
 stw      r9,  0x0dc0( r8)                            # 02adc
 srwi     r9,  r7,  0x18                              # 02ae0
 blt-     cr4, major_0x04a20_0x18                     # 02ae4
-bne-     cr2, major_0x02980_0x5f0                    # 02ae8
+bne-     cr2, major_0x02ccc_0x2a4                    # 02ae8
 cmpwi    cr1,  r9,  0x0c                             # 02aec
 blt+    major_0x02980_0xa8                           # 02af0
-beq-     cr1, major_0x02980_0x5f0                    # 02af4
+beq-     cr1, major_0x02ccc_0x2a4                    # 02af4
 
 major_0x02980_0x178:  /* < outside referer */
 lwz      r1, -0x0004( r1)                            # 02af8
 lwz      r9,  0x0658( r1)                            # 02afc
 addi     r8,  r1,  0x360                             # 02b00
 mtspr   275/*sprg3*/,  r8                            # 02b04
-bltl-    cr2, major_0x02980_0x454                    # 02b08
+bltl-    cr2, major_0x02ccc_0x108                    # 02b08
 
 major_0x02980_0x18c:  /* < outside referer */
 mfspr    r1, 272/*sprg0*/                            # 02b0c
@@ -3846,36 +3851,83 @@ lwz     r29,  0x01ec( r6)                            # 02ca4
 lwz     r30,  0x01f4( r6)                            # 02ca8
 lwz     r31,  0x01fc( r6)                            # 02cac
 
-major_0x02980_0x330:  /* < outside referer */
+
+
+/***********************************************************
+
+                        skeleton_key                        
+
+************************************************************
+
+Called when a Gary reset trap is called. When else?
+
+************************************************************
+
+Xrefs:
+major_0x02980
+major_0x03200
+major_0x03940
+major_0x03be0
+major_0x04240
+major_0x04300
+major_0x043a0
+reset_trap
+major_0x04700
+major_0x04880
+major_0x08794
+bootstrap_cpu
+major_0x0a600
+rtas_call
+major_0x0a8c0
+syscall_return
+major_0x154e0
+
+***********************************************************/
+
+skeleton_key:  /* < outside referer */
 andi.    r8,  r7,  0x30                              # 02cb0
 mfspr    r1, 272/*sprg0*/                            # 02cb4
-bnel-   major_0x02980_0x34c                          # 02cb8
+bnel-   major_0x02ccc                                # 02cb8
 li       r8,  0x00                                   # 02cbc
 stw      r7, -0x0010( r1)                            # 02cc0
 stw      r8, -0x0114( r1)                            # 02cc4
 b       major_0x142a8                                # 02cc8
 
-major_0x02980_0x34c:
-mtcrf    0x3f,  r7                                   # 02ccc
-bns-     cr6, major_0x02980_0x364                    # 02cd0
-rlwinm   r7,  r7,  0, 28, 26                         # 02cd4
-bso-     cr7, major_0x02980_0x37c                    # 02cd8
-rlwinm   r7,  r7,  0, 27, 25                         # 02cdc
-b       major_0x02980_0x378                          # 02ce0
 
-major_0x02980_0x364:
-bne-     cr6, major_0x02980_0x378                    # 02ce4
+
+/***********************************************************
+
+                       major_0x02ccc                        
+
+************************************************************
+
+Xrefs:
+major_0x02980
+skeleton_key
+
+***********************************************************/
+
+major_0x02ccc:  /* < outside referer */
+mtcrf    0x3f,  r7                                   # 02ccc
+bns-     cr6, major_0x02ccc_0x18                     # 02cd0
+rlwinm   r7,  r7,  0, 28, 26                         # 02cd4
+bso-     cr7, major_0x02ccc_0x30                     # 02cd8
+rlwinm   r7,  r7,  0, 27, 25                         # 02cdc
+b       major_0x02ccc_0x2c                           # 02ce0
+
+major_0x02ccc_0x18:
+bne-     cr6, major_0x02ccc_0x2c                     # 02ce4
 rlwinm   r7,  r7,  0, 27, 25                         # 02ce8
 stw      r7, -0x0010( r1)                            # 02cec
 li       r8,  0x08                                   # 02cf0
 b       major_0x02980_0x134                          # 02cf4
 
-major_0x02980_0x378:
+major_0x02ccc_0x2c:
 blr                                                  # 02cf8
 
-major_0x02980_0x37c:
+major_0x02ccc_0x30:
 rlwinm.  r8,  r7,  0,  8,  8                         # 02cfc
-beq-    major_0x02980_0x454                          # 02d00
+beq-    major_0x02ccc_0x108                          # 02d00
 stw      r7, -0x0010( r1)                            # 02d04
 lwz      r8,  0x0104( r6)                            # 02d08
 stw      r8,  0x0000( r1)                            # 02d0c
@@ -3929,7 +3981,7 @@ rlwimi  r25, r26,  2, 22, 29                         # 02dc8
 bnelr-                                               # 02dcc
 b       major_0x05808_0x114                          # 02dd0
 
-major_0x02980_0x454:
+major_0x02ccc_0x108:  /* < outside referer */
 # r6 = ewa
 bl      save_registers_from_r14                      # 02dd4
 # r8 = sprg0 (not used by me)
@@ -3944,10 +3996,10 @@ bl      id_kind                                      # 02de0
 
 cmpwi    r9,  0x04                                   # 02de4
 mr      r30,  r8                                     # 02de8
-bnel-   major_0x02980_0x558                          # 02dec
+bnel-   major_0x02ccc_0x20c                          # 02dec
 lwz     r28,  0x0028(r30)                            # 02df0
 cmpwi   r28,  0x00                                   # 02df4
-beql-   major_0x02980_0x558                          # 02df8
+beql-   major_0x02ccc_0x20c                          # 02df8
 mr       r8,  r8                                     # 02dfc
 mr       r9,  r9                                     # 02e00
 addi     r8,  r1, -0xb50                             # 02e04
@@ -3997,7 +4049,7 @@ mr       r8, r28                                     # 02ecc
 bl      major_0x0c8b4                                # 02ed0
 b       major_0x142dc                                # 02ed4
 
-major_0x02980_0x558:
+major_0x02ccc_0x20c:
 mflr    r16                                          # 02ed8
 bl      1f                                           # 02edc
 .ascii  "Blue task terminated - no exception handler registered - srr1/0 "
@@ -4026,7 +4078,7 @@ bl      print_string                                 # 02f64
 mtlr    r16                                          # 02f68
 b       _dbgr_0x02960                                # 02f6c
 
-major_0x02980_0x5f0:
+major_0x02ccc_0x2a4:  /* < outside referer */
 bsol+    cr6, _dbgr_0x02960                          # 02f70
 
 # r6 = ewa
@@ -4054,14 +4106,14 @@ lwz     r16,  0x0064(r31)                            # 02fb4
 srwi     r8,  r7,  0x18                              # 02fb8
 rlwinm. r16, r16,  0,  9,  9                         # 02fbc
 cmpwi    cr1,  r8,  0x0c                             # 02fc0
-bne-    major_0x02980_0x870                          # 02fc4
-bne-     cr1, major_0x02980_0x870                    # 02fc8
+bne-    major_0x02ccc_0x524                          # 02fc4
+bne-     cr1, major_0x02ccc_0x524                    # 02fc8
 lwz      r8,  0x00e0(r31)                            # 02fcc
 addi     r8,  r8,  0x01                              # 02fd0
 stw      r8,  0x00e0(r31)                            # 02fd4
-b       major_0x02980_0x6cc                          # 02fd8
+b       major_0x02ccc_0x380                          # 02fd8
 
-major_0x02980_0x65c:
+major_0x02ccc_0x310:  /* < outside referer */
 bnsl+    cr6, _dbgr_0x02960                          # 02fdc
 bl      major_0x02980_0x114                          # 02fe0
 stw     r10,  0x0084( r6)                            # 02fe4
@@ -4091,13 +4143,13 @@ lwz     r16,  0x0064(r31)                            # 03028
 srwi     r8,  r7,  0x18                              # 0302c
 rlwinm. r16, r16,  0,  9,  9                         # 03030
 cmpwi    cr1,  r8,  0x14                             # 03034
-bne-    major_0x02980_0x870                          # 03038
-bne-     cr1, major_0x02980_0x870                    # 0303c
+bne-    major_0x02ccc_0x524                          # 03038
+bne-     cr1, major_0x02ccc_0x524                    # 0303c
 lwz      r8,  0x00e4(r31)                            # 03040
 addi     r8,  r8,  0x01                              # 03044
 stw      r8,  0x00e4(r31)                            # 03048
 
-major_0x02980_0x6cc:
+major_0x02ccc_0x380:
 mfspr   r14, 272/*sprg0*/                            # 0304c
 rlwinm   r7,  r7,  0, 27, 25                         # 03050
 rlwinm   r7,  r7,  0,  0, 30                         # 03054
@@ -4121,11 +4173,11 @@ lwz     r16,  0x06b4( r1)                            # 03084
 cmpwi    r9,  0x0c                                   # 03088
 cmpwi    cr1, r16,  0x00                             # 0308c
 mr      r26,  r8                                     # 03090
-bne-    major_0x02980_0x77c                          # 03094
-beq-     cr1, major_0x02980_0x720                    # 03098
-beq-     cr2, major_0x02980_0x77c                    # 0309c
+bne-    major_0x02ccc_0x430                          # 03094
+beq-     cr1, major_0x02ccc_0x3d4                    # 03098
+beq-     cr2, major_0x02ccc_0x430                    # 0309c
 
-major_0x02980_0x720:
+major_0x02ccc_0x3d4:
 lwz     r16,  0x0064(r31)                            # 030a0
 addi    r17, r31,  0x08                              # 030a4
 addi    r18, r31,  0xa0                              # 030a8
@@ -4150,13 +4202,13 @@ bl      major_0x0db04                                # 030f0
 cmpwi    r8,  0x00                                   # 030f4
 beq+    major_0x02964                                # 030f8
 
-major_0x02980_0x77c:
+major_0x02ccc_0x430:
 mfcr    r28                                          # 030fc
 li       r8,  0x1c                                   # 03100
-beq-     cr2, major_0x02980_0x7f4                    # 03104
+beq-     cr2, major_0x02ccc_0x4a8                    # 03104
 bl      boring_with_crset                            # 03108
 mr.     r26,  r8                                     # 0310c
-beq-    major_0x02980_0x858                          # 03110
+beq-    major_0x02ccc_0x50c                          # 03110
 addi    r17, r31,  0x08                              # 03114
 addi    r18, r31,  0xa0                              # 03118
 stw     r18,  0x0000(r17)                            # 0311c
@@ -4182,21 +4234,21 @@ lwz      r8, -0x0410( r1)                            # 03168
 bl      major_0x0dce8                                # 0316c
 b       major_0x0b0fc                                # 03170
 
-major_0x02980_0x7f4:
+major_0x02ccc_0x4a8:
 mr       r8, r31                                     # 03174
 bl      major_0x13ed8_0x8                            # 03178
 sync                                                 # 0317c
 lwz     r31, -0x0b50( r1)                            # 03180
 cmpwi    cr1, r31,  0x00                             # 03184
 li      r31,  0x00                                   # 03188
-bne+     cr1, major_0x02980_0x818                    # 0318c
+bne+     cr1, major_0x02ccc_0x4cc                    # 0318c
 mflr    r31                                          # 03190
 bl      dbgr                                         # 03194
 
-major_0x02980_0x818:
+major_0x02ccc_0x4cc:
 stw     r31, -0x0b50( r1)                            # 03198
 mtcr    r28                                          # 0319c
-bns-     cr6, major_0x02980_0x850                    # 031a0
+bns-     cr6, major_0x02ccc_0x504                    # 031a0
 lwz      r8,  0x0064( r6)                            # 031a4
 lwz      r9,  0x0068( r6)                            # 031a8
 stw      r8,  0x0024( r6)                            # 031ac
@@ -4209,12 +4261,12 @@ lwz      r8,  0x007c( r6)                            # 031c4
 stw      r8,  0x003c( r6)                            # 031c8
 crclr   4*cr6 + so                                   # 031cc
 
-major_0x02980_0x850:
+major_0x02ccc_0x504:
 # r6 = ewa
 bl      restore_registers_from_r14                   # 031d0
 b       major_0x02980_0x178                          # 031d4
 
-major_0x02980_0x858:
+major_0x02ccc_0x50c:
 li      r16,  0x02                                   # 031d8
 stb     r16,  0x0019(r31)                            # 031dc
 mr       r8, r31                                     # 031e0
@@ -4222,7 +4274,7 @@ bl      major_0x13ed8_0x8                            # 031e4
 bl      major_0x14af8_0xa0                           # 031e8
 b       major_0x0b0fc                                # 031ec
 
-major_0x02980_0x870:
+major_0x02ccc_0x524:
 b       major_0x0ea58_0xe4                           # 031f0
 
 
@@ -4281,7 +4333,7 @@ mtspr   22/*dec*/,  r8                               # 03234
 lwz     r16,  0x0184( r6)                            # 03238
 lwz     r17,  0x018c( r6)                            # 0323c
 lwz     r18,  0x0194( r6)                            # 03240
-b       major_0x02980_0x330                          # 03244
+b       skeleton_key                                 # 03244
 
 major_0x03200_0x48:
 lwz     r16,  0x0184( r6)                            # 03248
@@ -4318,7 +4370,7 @@ stw      r8, -0x0b50( r1)                            # 0329c
 
 # r6 = ewa
 bl      restore_registers_from_r14                   # 032a0
-b       major_0x02980_0x330                          # 032a4
+b       skeleton_key                                 # 032a4
 
 
 
@@ -4950,7 +5002,7 @@ isync                                                # 039c8
 mfspr    r8, 272/*sprg0*/                            # 039cc
 mtspr   275/*sprg3*/, r24                            # 039d0
 lmw     r14,  0x0038( r8)                            # 039d4
-b       major_0x02980_0x330                          # 039d8
+b       skeleton_key                                 # 039d8
 
 major_0x03940_0x9c:  /* < outside referer */
 lmw     r14,  0x0038( r8)                            # 039dc
@@ -5018,7 +5070,7 @@ bl      print_string                                 # 03a94
 rlwinm.  r8, r11,  0,  2,  2                         # 03a98
 beq-    major_0x03940_0x168                          # 03a9c
 bl      major_0x0a8c0_0x39c                          # 03aa0
-b       major_0x02980_0x330                          # 03aa4
+b       skeleton_key                                 # 03aa4
 
 major_0x03940_0x168:
 li       r8,  0x07                                   # 03aa8
@@ -5179,7 +5231,7 @@ lwz      r3,  0x0094( r6)                            # 03c5c
 lwz      r4,  0x009c( r6)                            # 03c60
 bnel-   major_0x03da0_0x78                           # 03c64
 addi     r9,  r6,  0x40                              # 03c68
-b       major_0x02980_0x330                          # 03c6c
+b       skeleton_key                                 # 03c6c
 
 major_0x03be0_0x90:
 lwz      r9,  0x0ea8( r1)                            # 03c70
@@ -5788,7 +5840,7 @@ stw      r8, -0x0b50( r1)                            # 042e4
 
 # r6 = ewa
 bl      restore_registers_from_r14                   # 042e8
-b       major_0x02980_0x330                          # 042ec
+b       skeleton_key                                 # 042ec
 
 
 
@@ -5863,7 +5915,7 @@ stw      r8, -0x0b50( r1)                            # 04384
 
 # r6 = ewa
 bl      restore_registers_from_r14                   # 04388
-b       major_0x02980_0x330                          # 0438c
+b       skeleton_key                                 # 0438c
 
 
 
@@ -5893,12 +5945,12 @@ Xrefs:
 
 major_0x043a0:  /* < outside referer */
 mtcrf    0x3f,  r7                                   # 043a0
-bnel+    cr2, major_0x02980_0x330                    # 043a4
+bnel+    cr2, skeleton_key                           # 043a4
 and.     r8,  r4, r13                                # 043a8
 lwz      r9,  0x0340( r1)                            # 043ac
 rlwinm   r8,  r3,  0,  0, 25                         # 043b0
 cmpw     cr1,  r8,  r9                               # 043b4
-bne+    major_0x02980_0x330                          # 043b8
+bne+    skeleton_key                                 # 043b8
 lwz      r9,  0x0344( r1)                            # 043bc
 bne-     cr1, major_0x043a0_0x48                     # 043c0
 
@@ -6006,7 +6058,7 @@ b       major_0x02980_0x134                          # 04504
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 dbgr_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36
 
 ************************************************************
@@ -6038,41 +6090,48 @@ blr                                                  # 04514
 
 /***********************************************************
 
-                        trap_vector                         
+                         reset_trap                         
 
 ************************************************************
 
-Guessing thats what it is, anyway
+Handle a 68k reset trap.
+Some messing around with 601 RTC vs later timebase registers.
+If Gary Davidian's first name and birthdate were in the 68k's A0/A1 (the 'skeleton key'), do something. Otherwise, farm it out to non_skeleton_reset_trap.
 
 ************************************************************
 
 Xrefs:
 "lisori_caller"
 
+************************************************************
+
+> r3    = a0
+> r4    = a1
+
 ***********************************************************/
 
-trap_vector:  /* < outside referer */
+reset_trap:  /* < outside referer */
 # r6 = ewa
 bl      save_registers_from_r14                      # 04520
 # r8 = sprg0 (not used by me)
 
 mfspr    r9, 287/*pvr*/                              # 04524
 rlwinm.  r9,  r9,  0,  0, 14                         # 04528
-xoris    r8,  r3,  0x4761                            # 0452c
-beq-    cpu_version_zero                             # 04530
+xoris    r8,  r3, ('G'<<8) + ('a')                   # 0452c
+beq-    reset_trap_cpu_not_601                       # 04530
 mftb     r9,  0x10c                                  # 04534
-b       trap_vector_0x20                             # 04538
+b       reset_trap_endif                             # 04538
 
-cpu_version_zero:
+reset_trap_cpu_not_601:
 mfspr    r9, 5/*rtcl*/                               # 0453c
 
-trap_vector_0x20:
+reset_trap_endif:
 andis.   r9,  r9,  0xffff                            # 04540
-cmplwi   r8,  0x7279                                 # 04544
-bne-    handle_ResetSystem_trap                      # 04548
+cmplwi   r8, ('r'<<8) + ('y')                        # 04544
+bne-    non_skeleton_reset_trap                      # 04548
 xoris    r8,  r4,  0x505                             # 0454c
 cmplwi   r8,  0x1956                                 # 04550
-bne-    handle_ResetSystem_trap                      # 04554
+bne-    non_skeleton_reset_trap                      # 04554
 andc    r11, r11,  r5                                # 04558
 lwz      r8,  0x013c( r6)                            # 0455c
 or      r11, r11,  r8                                # 04560
@@ -6092,22 +6151,26 @@ bl      1f                                           # 0459c
 .align  2                                            # 045a4
 1: mflr  r8                                          # 045a4
 bl      print_string                                 # 045a8
-b       major_0x02980_0x330                          # 045ac
+b       skeleton_key                                 # 045ac
 
 
 
 /***********************************************************
 
-                  handle_ResetSystem_trap                   
+                  non_skeleton_reset_trap                   
+
+************************************************************
+
+A 68k reset trap without Gary Davidian's magic numbers.
 
 ************************************************************
 
 Xrefs:
-trap_vector
+reset_trap
 
 ***********************************************************/
 
-handle_ResetSystem_trap:  /* < outside referer */
+non_skeleton_reset_trap:  /* < outside referer */
 bl      1f                                           # 045b0
 .ascii  "ResetSystem trap entered^n"                 # 045b4
 .short  0                                            # 045ce
@@ -6116,7 +6179,9 @@ bl      1f                                           # 045b0
 bl      print_string                                 # 045d4
 lwz      r8,  0x05a0( r1)                            # 045d8
 cmpwi    r8,  0x00                                   # 045dc
-beq+    all_world_setup_second_attempt               # 045e0
+
+# r1 = kdp
+beq+    setup_new_world                              # 045e0
 bl      1f                                           # 045e4
 .ascii  "Unplugging the replacement nanokernel^n"    # 045e8
 .short  0                                            # 0460f
@@ -6166,7 +6231,7 @@ Jumps to the interrupt handler that was chosen based on ConfigInfo.
 
 Xrefs:
 "lisori_caller"
-all_world_setup
+setup
 major_0x04880
 
 ************************************************************
@@ -6428,7 +6493,7 @@ lwz      r9, -0x0008( r8)                            # 047fc
 xoris   r13, r13,  0x2000                            # 04800
 lwz      r8,  0x00ec( r9)                            # 04804
 stw      r8,  0x0104( r6)                            # 04808
-b       major_0x02980_0x330                          # 0480c
+b       skeleton_key                                 # 0480c
 
 major_0x04700_0x110:
 mtcr     r7                                          # 04810
@@ -6525,17 +6590,23 @@ li       r8,  0x01                                   # 048a8
 # r7 = flags
 # r8 = usually 2?
 bl      SIGP                                         # 048ac
-.long   0x4800f06d                                   # 048b0
-.long   0x2c088da2                                   # 048b4
-.long   0x2c888da3                                   # 048b8
-.long   0x2d088da1                                   # 048bc
-.long   0x4182fda0                                   # 048c0
-.long   0x4186e3ec                                   # 048c4
-.long   0x408afd98                                   # 048c8
-.long   0x7d3042a6                                   # 048cc
-.long   0x39000001                                   # 048d0
-.long   0x9909fee8                                   # 048d4
-.long   0x4bffe3d8                                   # 048d8
+
+# r6 = ewa
+bl      restore_registers_from_r14                   # 048b0
+cmpwi    r8, -0x725e                                 # 048b4
+cmpwi    cr1,  r8, -0x725d                           # 048b8
+cmpwi    cr2,  r8, -0x725f                           # 048bc
+
+# r1 = kdp
+beq+    int_handler                                  # 048c0
+beq+     cr1, skeleton_key                           # 048c4
+
+# r1 = kdp
+bne+     cr2, int_handler                            # 048c8
+mfspr    r9, 272/*sprg0*/                            # 048cc
+li       r8,  0x01                                   # 048d0
+stb      r8, -0x0118( r9)                            # 048d4
+b       skeleton_key                                 # 048d8
 
 
 
@@ -6999,7 +7070,7 @@ b       dbgr                                         # 04c00
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 major_0x035a0
 major_0x03940
 dsi_vector
@@ -7479,7 +7550,7 @@ b       major_0x04c20_0x500                          # 05274
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 
 ***********************************************************/
 
@@ -7690,7 +7761,7 @@ bnelr-                                               # 05520
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 major_0x054b8
 print_memory_logical
 major_0x18c08
@@ -7761,7 +7832,7 @@ blr                                                  # 055dc
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 major_0x14bcc
 major_0x16bb4
 
@@ -7952,7 +8023,7 @@ b       major_0x05808_0x244                          # 05804
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 funny_debug_place
 major_0x06000
 
@@ -9057,7 +9128,7 @@ b       major_0x05808_0x3a4                          # 06698
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 
 ***********************************************************/
 
@@ -11473,7 +11544,7 @@ bl      dbgr                                         # 087f8
 
 major_0x08794_0x68:
 stw      r8, -0x0b90( r1)                            # 087fc
-b       major_0x02980_0x330                          # 08800
+b       skeleton_key                                 # 08800
 mfspr    r8, 272/*sprg0*/                            # 08804
 stmw    r29,  0x0074( r8)                            # 08808
 lwz     r29,  0x05a8( r1)                            # 0880c
@@ -12863,7 +12934,7 @@ dbgr_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 
 ***********************************************************/
 
@@ -13006,7 +13077,7 @@ lwz     r28,  0x01e4( r6)                            # 09e38
 lwz     r29,  0x01ec( r6)                            # 09e3c
 lwz     r30,  0x01f4( r6)                            # 09e40
 lwz     r31,  0x01fc( r6)                            # 09e44
-b       major_0x02980_0x330                          # 09e48
+b       skeleton_key                                 # 09e48
 
 bootstrap_cpu_0x12c:
 li       r3, -0x7267                                 # 09e4c
@@ -13014,11 +13085,11 @@ b       bootstrap_cpu_0x10c                          # 09e50
 
 bootstrap_cpu_0x134:
 li       r3,  0x00                                   # 09e54
-b       major_0x02980_0x330                          # 09e58
+b       skeleton_key                                 # 09e58
 
 bootstrap_cpu_0x13c:
 li       r3, -0x01                                   # 09e5c
-b       major_0x02980_0x330                          # 09e60
+b       skeleton_key                                 # 09e60
 
 bootstrap_cpu_0x144:
 mfspr    r9, 272/*sprg0*/                            # 09e64
@@ -13026,7 +13097,7 @@ lwz      r8, -0x0338( r9)                            # 09e68
 lwz      r9,  0x0024( r8)                            # 09e6c
 cmpwi    r9,  0x01                                   # 09e70
 li       r3, -0x7267                                 # 09e74
-bgt+    major_0x02980_0x330                          # 09e78
+bgt+    skeleton_key                                 # 09e78
 stw     r26,  0x01d4( r6)                            # 09e7c
 stw     r27,  0x01dc( r6)                            # 09e80
 stw     r28,  0x01e4( r6)                            # 09e84
@@ -13378,7 +13449,7 @@ lwz      r9,  0x003c(r16)                            # 0a3b0
 mtspr   535/*ibat3l*/,  r9                           # 0a3b4
 lwz     r16,  0x0184( r6)                            # 0a3b8
 li       r3,  0x00                                   # 0a3bc
-b       major_0x02980_0x330                          # 0a3c0
+b       skeleton_key                                 # 0a3c0
 
 bootstrap_cpu_0x6a4:
 mflr     r9                                          # 0a3c4
@@ -13398,27 +13469,11 @@ oris     r8,  r8,  0x04                              # 0a3f8
 mfspr    r9, 1008/*hid0*/                            # 0a3fc
 ori      r9,  r9,  0x8000                            # 0a400
 mtspr   1008/*hid0*/,  r9                            # 0a404
-bl      bootstrap_cpu_0x6ec                          # 0a408
-
-bootstrap_cpu_0x6ec:
-mflr     r9                                          # 0a40c
-addi     r9,  r9,  0x1f4                             # 0a410
+88: bl  99f                                          # 0a408
+99: mflr  r9                                         # 0a40c
+addi     r9,  r9, major_0x0a600 - 88b - 4            # 0a410
 lis      r1,      -0x3502                            # 0a414
 ori      r1,  r1,  0xbabe                            # 0a418
-
-
-
-/***********************************************************
-
-                       major_0x0a41c                        
-
-************************************************************
-
-Xrefs:
-bootstrap_cpu
-
-***********************************************************/
-
 b       major_0x0a500                                # 0a41c
 
 
@@ -13495,7 +13550,7 @@ b       major_0x0a500                                # 0a41c
 ************************************************************
 
 Xrefs:
-major_0x0a41c
+bootstrap_cpu
 
 ***********************************************************/
 
@@ -13587,6 +13642,7 @@ bootstrap_cpu
 
 ***********************************************************/
 
+major_0x0a600:  /* < outside referer */
 .long   0                                            # 0a600
 .long   0                                            # 0a604
 .long   0                                            # 0a608
@@ -13595,7 +13651,7 @@ bootstrap_cpu
 major_0x0a600_0x10:  /* < outside referer */
 mtspr   0x3fb,  r5                                   # 0a610
 li       r3,  0x00                                   # 0a614
-b       major_0x02980_0x330                          # 0a618
+b       skeleton_key                                 # 0a618
 
 major_0x0a600_0x1c:  /* < outside referer */
 b       major_0x0a600_0x1c                           # 0a61c
@@ -13661,7 +13717,7 @@ lwz      r8,  0x0908( r1) # kdp.rtas_proc            # 0a640
 cmpwi    r8,  0x00                                   # 0a644
 bne-    rtas_is_available                            # 0a648
 li       r3, -0x01                                   # 0a64c
-b       major_0x02980_0x330                          # 0a650
+b       skeleton_key                                 # 0a650
 
 rtas_is_available:
 mr       r8,  r8                                     # 0a654
@@ -13827,7 +13883,7 @@ bl      dbgr                                         # 0a8a4
 rtas_lock_did_not_fail:
 stw      r8, -0x0b10( r1) # kdp.rtas_lock            # 0a8a8
 li       r3,  0x00                                   # 0a8ac
-b       major_0x02980_0x330                          # 0a8b0
+b       skeleton_key                                 # 0a8b0
 
 rtas_make_actual_call:
 mtctr    r9                                          # 0a8b4
@@ -14005,7 +14061,7 @@ lwz     r21,  0x01ac( r6)                            # 0aa90
 lwz     r22,  0x01b4( r6)                            # 0aa94
 lwz     r23,  0x01bc( r6)                            # 0aa98
 sync                                                 # 0aa9c
-b       major_0x02980_0x330                          # 0aaa0
+b       skeleton_key                                 # 0aaa0
 
 major_0x0a8c0_0x1e4:
 clrlwi   r8,  r3,  0x10                              # 0aaa4
@@ -15059,7 +15115,7 @@ b       syscall_return                               # 0b0f8
 
 Xrefs:
 major_0x02964
-major_0x02980
+major_0x02ccc
 major_0x0b664
 major_0x0c968
 major_0x0cb8c
@@ -15147,7 +15203,7 @@ bne-     cr2, syscall_return_0x1c                    # 0b134
 
 # r6 = ewa
 bl      restore_registers_from_r14                   # 0b138
-b       major_0x02980_0x330                          # 0b13c
+b       skeleton_key                                 # 0b13c
 
 syscall_return_0x1c:
 b       major_0x142dc                                # 0b140
@@ -17988,7 +18044,7 @@ b       syscall_return_assert_lock_unheld            # 0c8b0
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 major_0x0c830
 major_0x0db04
 major_0x0e604
@@ -20066,7 +20122,7 @@ b       major_0x0b0fc_0x8                            # 0db00
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 major_0x04240
 major_0x04300
 major_0x0dacc
@@ -20315,7 +20371,7 @@ b       syscall_return_assert_lock_unheld            # 0dce4
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 major_0x0c680
 major_0x0c8b4
 major_0x0ccf4
@@ -20935,7 +20991,7 @@ b       syscall_return_assert_lock_unheld            # 0e32c
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 major_0x0bb20
 major_0x0e284
 
@@ -21689,7 +21745,7 @@ syscall 58
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 syscall
 major_0x0ec8c
 
@@ -22673,7 +22729,7 @@ b       dbgr                                         # 0f380
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 
 ***********************************************************/
 
@@ -22705,7 +22761,7 @@ Pretty obvious from log output.
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 
 ***********************************************************/
 
@@ -23106,7 +23162,7 @@ Guessing by strings -- but maybe that name applies to syscall?
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 major_0x0f7b8
 
 ***********************************************************/
@@ -26025,7 +26081,7 @@ b       syscall_return                               # 114f8
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 major_0x104ec
 major_0x1070c
 major_0x11490
@@ -27895,7 +27951,7 @@ b       dbgr                                         # 12780
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 
 ***********************************************************/
 
@@ -27948,8 +28004,8 @@ blr                                                  # 12818
 ************************************************************
 
 Xrefs:
-all_world_setup
-major_0x02980
+setup
+major_0x02ccc
 major_0x0b3cc
 major_0x0b960
 major_0x0c5e0
@@ -28515,7 +28571,7 @@ b       dbgr                                         # 12d40
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 
 ***********************************************************/
 
@@ -28762,7 +28818,7 @@ b       major_0x13060_0x18                           # 13018
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 
 ***********************************************************/
 
@@ -29425,7 +29481,7 @@ Really just named for its strings. Early boot. RDYQ
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 
 ************************************************************
 
@@ -29510,10 +29566,10 @@ stmw not used because registers are spaced out?
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 major_0x03200
 save_all_registers
-trap_vector
+reset_trap
 major_0x04880
 syscall
 major_0x142a8
@@ -29600,12 +29656,13 @@ Again, well optimised
 ************************************************************
 
 Xrefs:
-all_world_setup
-major_0x02980
+setup
+major_0x02ccc
 major_0x03200
 major_0x04240
 major_0x04300
-handle_ResetSystem_trap
+non_skeleton_reset_trap
+major_0x04880
 syscall_return
 major_0x142dc
 major_0x154e0
@@ -30131,7 +30188,7 @@ blr                                                  # 13e48
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 major_0x0b4a4
 nk_yield_with_hint
 major_0x0b664
@@ -30198,8 +30255,8 @@ blr                                                  # 13ed4
 ************************************************************
 
 Xrefs:
-all_world_setup
-major_0x02980
+setup
+major_0x02ccc
 major_0x0b4a4
 nk_yield_with_hint
 NKStopScheduling
@@ -30282,7 +30339,7 @@ blr                                                  # 13f74
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 SIGP
 major_0x04a20
 major_0x14548
@@ -30555,7 +30612,7 @@ blr                                                  # 142a4
 ************************************************************
 
 Xrefs:
-major_0x02980
+skeleton_key
 
 ***********************************************************/
 
@@ -30607,7 +30664,7 @@ mr       r9, r28                                     # 142d8
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 syscall_return
 major_0x142a8
 major_0x14bcc
@@ -30782,7 +30839,7 @@ If bit 27 of 0xedc(r1) is set:
 ************************************************************
 
 Xrefs:
-handle_ResetSystem_trap
+non_skeleton_reset_trap
 major_0x142a8
 major_0x142dc
 major_0x14548
@@ -31205,7 +31262,7 @@ b       major_0x13060_0xc                            # 149d0
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 NKStopScheduling
 major_0x0c8b4
 major_0x0ccf4
@@ -31350,8 +31407,8 @@ blr                                                  # 14af4
 ************************************************************
 
 Xrefs:
-all_world_setup
-major_0x02980
+setup
+major_0x02ccc
 major_0x0b4a4
 nk_yield_with_hint
 NKStopScheduling
@@ -31844,7 +31901,7 @@ b       dbgr                                         # 15140
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 
 ***********************************************************/
 
@@ -31886,7 +31943,7 @@ blr                                                  # 151ac
 ************************************************************
 
 Xrefs:
-all_world_setup
+setup
 major_0x0b3cc
 major_0x0b720
 major_0x0b960
@@ -32086,7 +32143,7 @@ blr                                                  # 15370
 ************************************************************
 
 Xrefs:
-major_0x02980
+major_0x02ccc
 major_0x04240
 major_0x04300
 NKRegisterCpuPlugin
@@ -32318,7 +32375,7 @@ ConfigInfo has a byte at 0x40, which on NewWorld machines, equals 6 and is inher
 
 Xrefs:
 replace_old_kernel
-new_world_setup
+new_world
 
 ************************************************************
 
@@ -32427,7 +32484,7 @@ bl      dbgr                                         # 15548
 major_0x154e0_0x6c:
 stw      r8, -0x0b70( r1)                            # 1554c
 bl      restore_registers_from_r14_0x28              # 15550
-b       major_0x02980_0x330                          # 15554
+b       skeleton_key                                 # 15554
 
 major_0x154e0_0x78:
 sync                                                 # 15558
@@ -32476,7 +32533,7 @@ stw      r8, -0x0b50( r1)                            # 155d4
 
 # r6 = ewa
 bl      restore_registers_from_r14                   # 155d8
-b       major_0x02980_0x330                          # 155dc
+b       skeleton_key                                 # 155dc
 
 major_0x154e0_0x100:
 li      r27,  0x00                                   # 155e0
@@ -32590,7 +32647,7 @@ stw     r16, -0x0b50( r1)                            # 15734
 
 # r6 = ewa
 bl      restore_registers_from_r14                   # 15738
-b       major_0x02980_0x330                          # 1573c
+b       skeleton_key                                 # 1573c
 
 
 
@@ -33847,17 +33904,17 @@ b       _int_handler_kind_08_0x1f8                   # 163d8
 
 Xrefs:
 replace_old_kernel
-new_world_setup
-all_world_setup
-fail
+new_world
+setup
+undo_failed_kernel_replacement
 lock
 spinlock_what
-major_0x02980
+major_0x02ccc
 major_0x035a0
 major_0x03940
 major_0x04300
-trap_vector
-handle_ResetSystem_trap
+reset_trap
+non_skeleton_reset_trap
 major_0x04c20
 major_0x08794
 NKRegisterCpuPlugin
@@ -35156,7 +35213,7 @@ Xrefs:
 "lisori_caller"
 _dbgr_0x02940
 _dbgr_0x02960
-major_0x02980
+major_0x02ccc
 major_0x03200
 major_0x035a0
 major_0x03940
@@ -37013,50 +37070,54 @@ blr                                                  # 189c0
 
 /***********************************************************
 
-                         set_up_log                         
+                          init_log                          
 
 ************************************************************
 
 Xrefs:
 replace_old_kernel
-new_world_setup
-fail
+new_world
+undo_failed_kernel_replacement
+
+************************************************************
+
+> r1    = kdp
 
 ***********************************************************/
 
-set_up_log:  /* < outside referer */
-stmw    r29, -0x0110( r1)                            # 18a00
+init_log:  /* < outside referer */
+stmw    r29, -0x0110( r1) # kdp.-0x110               # 18a00
 lis     r30,      -0x01                              # 18a04
 ori     r30, r30,  0x7000                            # 18a08
 add     r30, r30,  r1                                # 18a0c
 addi    r31, r30,  0x2000                            # 18a10
 addi    r30, r30,  0x04                              # 18a14
 
-set_up_log_0x18:
+init_log_0x18:
 cmplw   r30, r31                                     # 18a18
 addi    r29, r31,  0x04                              # 18a1c
-bge-    set_up_log_0x2c                              # 18a20
+bge-    init_log_0x2c                                # 18a20
 stwu    r29, -0x1000(r31)                            # 18a24
-b       set_up_log_0x18                              # 18a28
+b       init_log_0x18                                # 18a28
 
-set_up_log_0x2c:
+init_log_0x2c:
 addi    r31, r30,  0x1000                            # 18a2c
 stw     r30, -0x0004(r31)                            # 18a30
-stw     r30, -0x0404( r1)                            # 18a34
-stw     r30, -0x0400( r1)                            # 18a38
+stw     r30, -0x0404( r1) # kdp.-0x404               # 18a34
+stw     r30, -0x0400( r1) # kdp.-0x400               # 18a38
 li      r29,  0x16                                   # 18a3c
-sth     r29, -0x0360( r1)                            # 18a40
+sth     r29, -0x0360( r1) # kdp.uint16_log_window_y  # 18a40
 li      r29,  0x18                                   # 18a44
-sth     r29, -0x035e( r1)                            # 18a48
+sth     r29, -0x035e( r1) # kdp.-0x35e               # 18a48
 li      r29,  0x1f6                                  # 18a4c
-sth     r29, -0x035c( r1)                            # 18a50
+sth     r29, -0x035c( r1) # kdp.uint16_log_window_height
 li      r29,  0x24c                                  # 18a54
-sth     r29, -0x035a( r1)                            # 18a58
+sth     r29, -0x035a( r1) # kdp.uint16_log_window_width
 li      r29,  0x5e                                   # 18a5c
-sth     r29, -0x0358( r1)                            # 18a60
+sth     r29, -0x0358( r1) # kdp.-0x358               # 18a60
 li      r29,  0x30                                   # 18a64
-sth     r29, -0x0356( r1)                            # 18a68
-lmw     r29, -0x0110( r1)                            # 18a6c
+sth     r29, -0x0356( r1) # kdp.-0x356               # 18a68
+lmw     r29, -0x0110( r1) # kdp.-0x110               # 18a6c
 blr                                                  # 18a70
 
 
@@ -37374,7 +37435,7 @@ bl      major_0x19ab0                                # 18d60
 blt-     cr4, major_0x18d5c_0x18                     # 18d64
 bl      major_0x19b00                                # 18d68
 beq-     cr4, major_0x18d5c_0x18                     # 18d6c
-bl      major_0x19b20                                # 18d70
+bl      load_log_colours                             # 18d70
 
 major_0x18d5c_0x18:
 mflr    r24                                          # 18d74
@@ -37479,7 +37540,7 @@ funny_thing
 major_0x18e54:  /* < outside referer */
 mflr    r13                                          # 18e54
 cmpwi    cr4,  r6,  0x02                             # 18e58
-bl      major_0x190a0                                # 18e5c
+bl      load_log_font                                # 18e5c
 mflr    r23                                          # 18e60
 add     r23, r25, r23                                # 18e64
 mulli   r27,  r5,  0x0a                              # 18e68
@@ -37679,7 +37740,7 @@ blrl                                                 # 19018
 
 /***********************************************************
 
-                       major_0x190a0                        
+                       load_log_font                        
 
 ************************************************************
 
@@ -37688,7 +37749,7 @@ major_0x18e54
 
 ***********************************************************/
 
-major_0x190a0:  /* < outside referer */
+load_log_font:  /* < outside referer */
 blrl                                                 # 190a0
 .long   0x907070f0                                   # 190a4
 .long   0xf0f06000                                   # 190a8
@@ -38423,7 +38484,11 @@ blrl                                                 # 19b00
 
 /***********************************************************
 
-                       major_0x19b20                        
+                      load_log_colours                      
+
+************************************************************
+
+Each word is RGB with the high byte ignored. Background and text.
 
 ************************************************************
 
@@ -38432,7 +38497,7 @@ major_0x18d5c
 
 ***********************************************************/
 
-major_0x19b20:  /* < outside referer */
+load_log_colours:  /* < outside referer */
 blrl                                                 # 19b20
 .long   0xfffffeee                                   # 19b24
 .long   0x44444444                                   # 19b28
