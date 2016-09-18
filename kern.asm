@@ -230,7 +230,7 @@ stw     r10,  0x0ff8( r1)                            # 00270
 lhz     r10,  0x0fdc( r1)                            # 00274
 cmplwi  r10,  0x112                                  # 00278
 bge-    replace_old_kernel_0x258                     # 0027c
-li      r12,  0xa0                                   # 00280
+li      r12, 160                                     # 00280
 li      r10,  0x112                                  # 00284
 sth     r12,  0x0fde( r1)                            # 00288
 sth     r12,  0x0ffe( r1)                            # 0028c
@@ -512,7 +512,7 @@ beq+    new_world_0xa8                               # 00558
 #   Some really tricky stuff happens here with the memory data.
 #   The location of the KDP and the irp get chosen.
 subf    r11, r12, r11                                # 0055c
-srawi   r11, r11,  0x1f                              # 00560
+srawi   r11, r11, 31                                 # 00560
 andc    r12, r12, r11                                # 00564
 lwz     r11,  0x0000(r10)                            # 00568
 subf    r11, r12, r11                                # 0056c
@@ -577,7 +577,7 @@ addi    r12, r12, -0x01                              # 00638
 new_world_0x194:
 addic.  r12, r12, -0x04                              # 0063c
 subf    r10, r11, r12                                # 00640
-cmplwi   cr7, r10,  0x208                            # 00644
+cmplwi   cr7, r10, 520                               # 00644
 ble-     cr7, new_world_0x1a8                        # 00648
 stwx     r0, r13, r12                                # 0064c
 
@@ -616,7 +616,7 @@ stw      r0,  0x090c( r1) # kdp.rtas_private_data    # 006b0
 
 end_if_rtas:
 addi    r11,  r1,  0xf20 # kdp.u32_pvr               # 006b4
-li      r10,  0xa0                                   # 006b8
+li      r10, 160                                     # 006b8
 
 new_world_0x214:
 addic.  r10, r10, -0x04                              # 006bc
@@ -625,7 +625,7 @@ stwx    r12, r11, r10                                # 006c4
 bgt+    new_world_0x214                              # 006c8
 lwz     r11, -0x0020( r1) # kdp.irp                  # 006cc
 addi    r11, r11,  0xdc0                             # 006d0
-li      r10,  0x140                                  # 006d4
+li      r10, 320                                     # 006d4
 
 new_world_0x230:
 addic.  r10, r10, -0x04                              # 006d8
@@ -763,7 +763,7 @@ addi    r12, r11,  0xf20                             # 008d8
 stw     r12,  0x0fd8( r1) # kdp.0xfd8                # 008dc
 li      r12,  0x112                                  # 008e0
 sth     r12,  0x0fdc( r1) # kdp.0xfdc                # 008e4
-li      r12,  0xa0                                   # 008e8
+li      r12, 160                                     # 008e8
 sth     r12,  0x0fde( r1) # kdp.0xfde                # 008ec
 lwz     r11,  0x00a0( r3) # ConfigInfo.logi_KernelData
 addi    r12, r11,  0xdc0                             # 008f4
@@ -784,14 +784,14 @@ addi    r12, r11,  0xdc0                             # 0092c
 stw     r12,  0x0ff0( r1) # kdp.0xff0                # 00930
 li      r12,  0x107                                  # 00934
 sth     r12,  0x0ff4( r1) # kdp.0xff4                # 00938
-li      r12,  0x140                                  # 0093c
+li      r12, 320                                     # 0093c
 sth     r12,  0x0ff6( r1) # kdp.0xff6                # 00940
 lwz     r11,  0x00a0( r3) # ConfigInfo.logi_KernelData
 addi    r12, r11,  0xf20                             # 00948
 stw     r12,  0x0ff8( r1) # kdp.0xff8                # 0094c
 li      r12,  0x112                                  # 00950
 sth     r12,  0x0ffc( r1) # kdp.0xffc                # 00954
-li      r12,  0xa0                                   # 00958
+li      r12, 160                                     # 00958
 sth     r12,  0x0ffe( r1) # kdp.0xffe                # 0095c
 lwz     r11,  0x0074( r3) # ConfigInfo.0x74          # 00960
 lwz     r12,  0x0064( r3) # ConfigInfo.rom_version_string_16char
@@ -844,7 +844,7 @@ cmplw   r12, r11                                     # 009fc
 beq-    new_world_final_common                       # 00a00
 mfspr   r12, 287/*pvr*/                              # 00a04
 stw     r12,  0x0f20( r1) # kdp.u32_pvr              # 00a08
-srwi    r12, r12,  0x10                              # 00a0c
+srwi    r12, r12, 16                                 # 00a0c
 lwz     r11,  0x064c( r1) # kdp.phys_kern_base       # 00a10
 addi    r10,  r1,  0xf30 # kdp.u32_cpuinfo_page_size # 00a14
 li       r9,  0x24                                   # 00a18
@@ -1092,9 +1092,9 @@ sth     r12,  0x0f4e( r1) # kdp.u16_cpuinfo_dcache_assoc
 new_world_0x774:
 lwz     r17,  0x0f34( r1) # kdp.u32_cpuinfo_dcache_size
 lhz     r18,  0x0f4e( r1) # kdp.u16_cpuinfo_dcache_assoc
-slwi    r17, r17,  0x01                              # 00c24
+slwi    r17, r17,  1                                 # 00c24
 divwu   r18, r17, r18                                # 00c28
-srwi    r19, r18,  0x01                              # 00c2c
+srwi    r19, r18,  1                                 # 00c2c
 li      r14,  0x200                                  # 00c30
 add     r19, r19, r14                                # 00c34
 li      r16, -0x01                                   # 00c38
@@ -1104,14 +1104,14 @@ new_world_0x798:
 lhz     r12,  0x0f4a( r1) # kdp.u16_cpuinfo_dcache_block_size
 cmplw   r14, r12                                     # 00c44
 ble-    new_world_0x7bc                              # 00c48
-srwi    r14, r14,  0x01                              # 00c4c
+srwi    r14, r14,  1                                 # 00c4c
 subf    r19, r14, r19                                # 00c50
 
 new_world_0x7ac:
 mtlr    r20                                          # 00c54
 blrl                                                 # 00c58
 ble+    new_world_0x798                              # 00c5c
-slwi    r12, r14,  0x01                              # 00c60
+slwi    r12, r14,  1                                 # 00c60
 
 new_world_0x7bc:
 sth     r12,  0x0f44( r1) # kdp.u16_cpuinfo_dcache_line_size
@@ -1181,7 +1181,7 @@ sth     r12,  0x0f52( r1) # kdp.u16_cpuinfo_tlb_assoc
 new_world_0x890:
 mr      r13, r14                                     # 00d38
 addi    r12, r22, -0x01                              # 00d3c
-srwi    r12, r12,  0x10                              # 00d40
+srwi    r12, r12, 16                                 # 00d40
 or      r12, r12, r21                                # 00d44
 mtspr   25/*sdr1*/, r12                              # 00d48
 lwz     r12,  0x0f34( r1) # kdp.u32_cpuinfo_dcache_size
@@ -1307,7 +1307,7 @@ isync                                                # 00ed8
 lwz     r17,  0x0f38( r1) # kdp.u32_cpuinfo_icache_size
 lhz     r18,  0x0f4c( r1) # kdp.u16_cpuinfo_icache_assoc
 divwu   r18, r17, r18                                # 00ee4
-slwi    r17, r17,  0x01                              # 00ee8
+slwi    r17, r17,  1                                 # 00ee8
 add     r12, r13, r17                                # 00eec
 addi    r11, r21, -0x04                              # 00ef0
 
@@ -1340,7 +1340,7 @@ bne+    new_world_0xa4c                              # 00f4c
 sync                                                 # 00f50
 isync                                                # 00f54
 mr      r19, r18                                     # 00f58
-slwi    r18, r18,  0x01                              # 00f5c
+slwi    r18, r18,  1                                 # 00f5c
 li      r14,  0x200                                  # 00f60
 add     r19, r19, r14                                # 00f64
 li      r16, -0x01                                   # 00f68
@@ -1350,18 +1350,18 @@ new_world_0xac8:
 li      r12,  0x08                                   # 00f70
 cmplw   r14, r12                                     # 00f74
 ble-    new_world_0xaec                              # 00f78
-srwi    r14, r14,  0x01                              # 00f7c
+srwi    r14, r14,  1                                 # 00f7c
 subf    r19, r14, r19                                # 00f80
 
 new_world_0xadc:
 mtlr    r20                                          # 00f84
 blrl                                                 # 00f88
 ble+    new_world_0xac8                              # 00f8c
-slwi    r12, r14,  0x01                              # 00f90
+slwi    r12, r14,  1                                 # 00f90
 
 new_world_0xaec:
 sth     r12,  0x0f42( r1) # kdp.u16_cpuinfo_icache_line_size
-srwi    r18, r18,  0x01                              # 00f98
+srwi    r18, r18,  1                                 # 00f98
 add     r12, r13, r17                                # 00f9c
 addi    r11, r21, -0x04                              # 00fa0
 
@@ -1409,7 +1409,7 @@ mtspr   22/*dec*/, r11                               # 00fe8
 
 copied_code_1_0x18:
 subf    r12, r17, r11                                # 00fec
-srawi   r12, r12,  0x1f                              # 00ff0
+srawi   r12, r12, 31                                 # 00ff0
 and     r11, r11, r12                                # 00ff4
 lbzx    r12, r13, r11                                # 00ff8
 add     r12, r12, r12                                # 00ffc
@@ -1425,7 +1425,7 @@ bgt-    copied_code_1_0x54                           # 01020
 mr      r16, r12                                     # 01024
 
 copied_code_1_0x54:
-srwi    r11, r12,  0x07                              # 01028
+srwi    r11, r12,  7                                 # 01028
 subf    r12, r11, r12                                # 0102c
 cmpw    r12, r16                                     # 01030
 blelr-                                               # 01034
@@ -1467,37 +1467,43 @@ new_world
 copied_code_2:  /* < outside referer */
 li      r10,  0x03                                   # 01088
 mflr     r9                                          # 0108c
+
+copied_code_2_0x8:
 li      r12,  0x800                                  # 01090
 mtctr   r12                                          # 01094
 add     r19, r19, r13                                # 01098
 li      r11,  0x00                                   # 0109c
 mtspr   22/*dec*/, r11                               # 010a0
+
+copied_code_2_0x1c:
 subf    r12, r17, r11                                # 010a4
-srawi   r12, r12,  0x1f                              # 010a8
+srawi   r12, r12, 31                                 # 010a8
 and     r11, r11, r12                                # 010ac
 add     r12, r13, r11                                # 010b0
 mtlr    r12                                          # 010b4
 blrl                                                 # 010b8
-.long   0x7d935a14                                   # 010bc
-.long   0x7d8803a6                                   # 010c0
-.long   0x4e800021                                   # 010c4
-.long   0x7d6b9214                                   # 010c8
-.long   0x4200ffd8                                   # 010cc
-.long   0x7e6d9850                                   # 010d0
-.long   0x7d9602a6                                   # 010d4
-.long   0x7d8c00d0                                   # 010d8
-.long   0x7c0c8040                                   # 010dc
-.long   0x41810008                                   # 010e0
-.long   0x7d906378                                   # 010e4
-.long   0x558bc9fe                                   # 010e8
-.long   0x7d8b6050                                   # 010ec
-.long   0x7c0c8000                                   # 010f0
-.long   0x7d2803a6                                   # 010f4
-.long   0x4c810020                                   # 010f8
-.long   0x354affff                                   # 010fc
-.long   0x4181ff90                                   # 01100
-.long   0x7c0c8000                                   # 01104
-.long   0x4e800020                                   # 01108
+add     r12, r19, r11                                # 010bc
+mtlr    r12                                          # 010c0
+blrl                                                 # 010c4
+add     r11, r11, r18                                # 010c8
+bdnz+   copied_code_2_0x1c                           # 010cc
+subf    r19, r13, r19                                # 010d0
+mfspr   r12, 22/*dec*/                               # 010d4
+neg     r12, r12                                     # 010d8
+cmplw   r12, r16                                     # 010dc
+bgt-    copied_code_2_0x60                           # 010e0
+mr      r16, r12                                     # 010e4
+
+copied_code_2_0x60:
+srwi    r11, r12,  7                                 # 010e8
+subf    r12, r11, r12                                # 010ec
+cmpw    r12, r16                                     # 010f0
+mtlr     r9                                          # 010f4
+blelr-                                               # 010f8
+addic.  r10, r10, -0x01                              # 010fc
+bgt+    copied_code_2_0x8                            # 01100
+cmpw    r12, r16                                     # 01104
+blr                                                  # 01108
 .long   0x4c00012c                                   # 0110c
 .long   0x4c00012c                                   # 01110
 .long   0x4c00012c                                   # 01114
@@ -1801,7 +1807,7 @@ stw      r8,  0x0000( r1) # kdp.0x0                  # 013e0
 stvewx   v0,  r0,  r9                                # 013e4
 lwz      r8,  0x0000( r1) # kdp.0x0                  # 013e8
 stw      r8, -0x0968( r1) # kdp.-0x968               # 013ec
-oris     r7,  r8,  0xa0                              # 013f0
+oris     r7,  r8, 160                                # 013f0
 stw      r7, -0x0010( r1) # kdp.-0x10                # 013f4
 lwz      r6,  0x0658( r1) # kdp.system_context       # 013f8
 lwz     r10,  0x0648( r1) # kdp.emu_e8c0             # 013fc
@@ -2175,7 +2181,7 @@ stw     r23,  0x003c( r8) # kdp.0x62c                # 01820
 #   0039 = 970
 #   003c = 970FX
 mfspr   r23, 287/*pvr*/                              # 01824
-srwi    r23, r23,  0x10                              # 01828
+srwi    r23, r23, 16                                 # 01828
 andi.    r8, r23,  0x8000                            # 0182c
 bne-    G4_7410_or_later                             # 01830
 
@@ -2193,8 +2199,8 @@ stb     r23,  0x06b8( r1) # kdp.0x6b8                # 01848
 lbz     r23,  0x116c( r8)                            # 0184c
 stb     r23,  0x06b9( r1) # kdp.0x6b9                # 01850
 mfspr   r23, 287/*pvr*/                              # 01854
-srwi    r23, r23,  0x10                              # 01858
-slwi    r23, r23,  0x02                              # 0185c
+srwi    r23, r23, 16                                 # 01858
+slwi    r23, r23,  2                                 # 0185c
 add      r8, r25, r23                                # 01860
 lwz     r23,  0x118c( r8)                            # 01864
 stw     r23,  0x0f68( r1) # kdp.0xf68                # 01868
@@ -2216,9 +2222,9 @@ stb     r23,  0x06b8( r1) # kdp.0x6b8                # 01888
 lbz     r23,  0x117c( r8)                            # 0188c
 stb     r23,  0x06b9( r1) # kdp.0x6b9                # 01890
 mfspr   r23, 287/*pvr*/                              # 01894
-srwi    r23, r23,  0x10                              # 01898
+srwi    r23, r23, 16                                 # 01898
 andi.   r23, r23,  0x7fff                            # 0189c
-slwi    r23, r23,  0x02                              # 018a0
+slwi    r23, r23,  2                                 # 018a0
 add      r8, r25, r23                                # 018a4
 lwz     r23,  0x11cc( r8)                            # 018a8
 stw     r23,  0x0f68( r1) # kdp.0xf68                # 018ac
@@ -2510,12 +2516,12 @@ stw     r16,  0x0004( r9)                            # 01cfc
 bl      say_nanodebugger_activated                   # 01d00
 
 # r1 = kdp
-bl      init_ready_queues                            # 01d04
+bl      init_rdyqs                                   # 01d04
 lwz      r8, -0x001c( r1) # kdp.-0x1c                # 01d08
 li       r9,  0x00                                   # 01d0c
 bl      major_0x13f78                                # 01d10
 lwz      r8, -0x041c( r1) # kdp.system_address_space # 01d14
-bl      major_0x0e330                                # 01d18
+bl      mktask                                       # 01d18
 mr.     r31,  r8                                     # 01d1c
 beq-    _dbgr_0x02940                                # 01d20
 lwz      r8,  0x0000(r31)                            # 01d24
@@ -2524,15 +2530,15 @@ li       r8, -0x01                                   # 01d2c
 sth      r8, -0x043c( r1) # kdp.-0x43c               # 01d30
 stw     r31, -0x08f0( r1) # kdp.-0x8f0               # 01d34
 stw     r31, -0x0008( r1) # kdp.-0x8                 # 01d38
-lis      r8,       0x626c                            # 01d3c
-ori      r8,  r8,  0x7565                            # 01d40
+lis      r8,      ('b'<<8) + ('l')                   # 01d3c
+ori      r8,  r8, ('u'<<8) + ('e')                   # 01d40
 stw      r8,  0x0074(r31)                            # 01d44
 li       r8,  0x02                                   # 01d48
 stb      r8,  0x0018(r31)                            # 01d4c
 lis      r8,       0x03                              # 01d50
 ori      r8,  r8,  0x28                              # 01d54
 stw      r8,  0x0064(r31)                            # 01d58
-li       r8,  0xc8                                   # 01d5c
+li       r8, 200                                     # 01d5c
 stw      r8,  0x001c(r31)                            # 01d60
 li       r8,  0x02                                   # 01d64
 stb      r8,  0x0019(r31)                            # 01d68
@@ -2606,12 +2612,12 @@ bl      say_starting_timeslicing                     # 01e9c
 mr      r31,  r7                                     # 01ea0
 rlwinm   r7,  r7,  0, 13, 11                         # 01ea4
 lwz      r8, -0x041c( r1) # kdp.system_address_space # 01ea8
-bl      major_0x0e330                                # 01eac
+bl      mktask                                       # 01eac
 mr       r7, r31                                     # 01eb0
 mr.     r31,  r8                                     # 01eb4
 beq-    _dbgr_0x02940                                # 01eb8
-lis      r8,       0x6964                            # 01ebc
-ori      r8,  r8,  0x6c65                            # 01ec0
+lis      r8,      ('i'<<8) + ('d')                   # 01ebc
+ori      r8,  r8, ('l'<<8) + ('e')                   # 01ec0
 stw      r8,  0x0074(r31)                            # 01ec4
 lis      r8,       0x0a                              # 01ec8
 ori      r8,  r8,  0x40                              # 01ecc
@@ -2741,7 +2747,7 @@ add      r8, r18,  r8                                # 020a4
 lwz     r23,  0x0004( r8)                            # 020a8
 rlwimi  r23, r19,  0,  0, 19                         # 020ac
 stw     r23,  0x0004( r8)                            # 020b0
-addi     r9, r26,  0xc8                              # 020b4
+addi     r9, r26, 200                                # 020b4
 addi     r8,  r1,  0x7c # kdp.0x7c                   # 020b8
 li      r22,  0x200                                  # 020bc
 
@@ -2771,7 +2777,7 @@ stw     r23,  0x05e0( r1) # kdp.0x5e0                # 02114
 lwz     r23,  0x0358(r26)                            # 02118
 stw     r23,  0x05e4( r1) # kdp.0x5e4                # 0211c
 li      r22,  0x00                                   # 02120
-addi    r19,  r1,  0x78 # kdp.0x78                   # 02124
+addi    r19,  r1, 120 # kdp.0x78                     # 02124
 b       setup_0xd00                                  # 02128
 
 setup_0xcf8:
@@ -2839,7 +2845,7 @@ setup_0xdac:
 beq-     cr5, setup_0xe30                            # 021e0
 subf    r22, r21, r29                                # 021e4
 addi     r8, r22,  0x1000                            # 021e8
-srwi    r17, r22,  0x0d                              # 021ec
+srwi    r17, r22, 13                                 # 021ec
 addi    r17, r17,  0x12                              # 021f0
 bl      1f                                           # 021f4
 .ascii  "Priming the system free list with "         # 021f8
@@ -2875,7 +2881,7 @@ addi    r18,  r1,  0x2000 # kdp.0x2000               # 02268
 subf.    r8, r18,  r8                                # 0226c
 blt-    setup_0xebc                                  # 02270
 addi     r8,  r8,  0x1000                            # 02274
-srwi    r17,  r8,  0x0c                              # 02278
+srwi    r17,  r8, 12                                 # 02278
 bl      1f                                           # 0227c
 .ascii  "Priming the system free list with "         # 02280
 .short  0                                            # 022a2
@@ -2946,10 +2952,10 @@ bl      print_string                                 # 023a0
 beq-     cr5, finish_old_world                       # 023a4
 subf    r22, r21, r29                                # 023a8
 lwz      r8,  0x06b4( r1) # kdp.VMMaxVirtualPages    # 023ac
-slwi     r8,  r8,  0x02                              # 023b0
+slwi     r8,  r8,  2                                 # 023b0
 cmplw   r22,  r8                                     # 023b4
 addi    r19, r22,  0x04                              # 023b8
-srwi    r19, r19,  0x02                              # 023bc
+srwi    r19, r19,  2                                 # 023bc
 stw     r19,  0x06ac( r1) # kdp.logi_pages           # 023c0
 blt-    setup_0xf98                                  # 023c4
 addi    r22,  r8, -0x04                              # 023c8
@@ -2958,15 +2964,15 @@ setup_0xf98:
 li      r30,  0x00                                   # 023cc
 lwz      r8, -0x0020( r1) # kdp.irp                  # 023d0
 addi    r19, r22,  0x04                              # 023d4
-slwi    r19, r19,  0x0a                              # 023d8
+slwi    r19, r19, 10                                 # 023d8
 ori     r30, r30,  0xffff                            # 023dc
 stw     r19,  0x0dc4( r8)                            # 023e0
-srwi    r22, r22,  0x02                              # 023e4
+srwi    r22, r22,  2                                 # 023e4
 stw     r19,  0x0dc8( r8)                            # 023e8
-srwi    r19, r19,  0x0c                              # 023ec
+srwi    r19, r19, 12                                 # 023ec
 stw     r19,  0x06a8( r1) # kdp.phys_pages           # 023f0
 addi    r29,  r1,  0x6bc # kdp.0x6bc                 # 023f4
-addi    r19,  r1,  0x78 # kdp.0x78                   # 023f8
+addi    r19,  r1, 120 # kdp.0x78                     # 023f8
 
 setup_0xfc8:
 cmplwi  r22,  0xffff                                 # 023fc
@@ -2984,7 +2990,7 @@ lwz     r17,  0x06a8( r1) # kdp.phys_pages           # 02428
 lwz     r18,  0x06ac( r1) # kdp.logi_pages           # 0242c
 stw     r17,  0x06ac( r1) # kdp.logi_pages           # 02430
 subf.   r18, r17, r18                                # 02434
-slwi    r31, r17,  0x0c                              # 02438
+slwi    r31, r17, 12                                 # 02438
 ble-    setup_skip_grabbing_more_pages               # 0243c
 bl      1f                                           # 02440
 .ascii  "Physical RAM greater than the initial logical area.^n Moving "
@@ -3389,7 +3395,7 @@ mr      r25, r29                                     # 0278c
 lwz     r30, -0x0004(r22)                            # 02790
 mfspr   r29, 22/*dec*/                               # 02794
 lwz     r28, -0x0438(r30)                            # 02798
-slwi    r28, r28,  0x03                              # 0279c
+slwi    r28, r28,  3                                 # 0279c
 subf    r29, r28, r29                                # 027a0
 b       lock_0xc0                                    # 027a4
 
@@ -3637,12 +3643,12 @@ mtcrf    0x3f,  r7                                   # 029a4
 add     r19, r19, r23                                # 029a8
 rlwimi   r7,  r8, 24,  0,  7                         # 029ac
 lwz      r1, -0x0004( r1)                            # 029b0
-slwi     r8,  r8,  0x02                              # 029b4
+slwi     r8,  r8,  2                                 # 029b4
 add      r8,  r8,  r1                                # 029b8
 lwz      r9,  0x0dc0( r8)                            # 029bc
 addi     r9,  r9,  0x01                              # 029c0
 stw      r9,  0x0dc0( r8)                            # 029c4
-srwi     r9,  r7,  0x18                              # 029c8
+srwi     r9,  r7, 24                                 # 029c8
 mfspr    r1, 272/*sprg0*/                            # 029cc
 lwz      r8,  0x0000( r1)                            # 029d0
 stw      r8,  0x0104( r6)                            # 029d4
@@ -3717,12 +3723,12 @@ lwz      r9, -0x000c( r1)                            # 02abc
 lwz      r1, -0x0004( r1)                            # 02ac0
 rlwnm.   r9,  r9,  r8,  0x00,  0x00                  # 02ac4
 rlwimi   r7,  r8, 24,  0,  7                         # 02ac8
-slwi     r8,  r8,  0x02                              # 02acc
+slwi     r8,  r8,  2                                 # 02acc
 add      r8,  r8,  r1                                # 02ad0
 lwz      r9,  0x0dc0( r8)                            # 02ad4
 addi     r9,  r9,  0x01                              # 02ad8
 stw      r9,  0x0dc0( r8)                            # 02adc
-srwi     r9,  r7,  0x18                              # 02ae0
+srwi     r9,  r7, 24                                 # 02ae0
 blt-     cr4, major_0x04a20_0x18                     # 02ae4
 bne-     cr2, major_0x02ccc_0x2a4                    # 02ae8
 cmpwi    cr1,  r9,  0x0c                             # 02aec
@@ -4103,7 +4109,7 @@ mr       r9, r29                                     # 02fa8
 mr       r8, r31                                     # 02fac
 bl      major_0x13e4c                                # 02fb0
 lwz     r16,  0x0064(r31)                            # 02fb4
-srwi     r8,  r7,  0x18                              # 02fb8
+srwi     r8,  r7, 24                                 # 02fb8
 rlwinm. r16, r16,  0,  9,  9                         # 02fbc
 cmpwi    cr1,  r8,  0x0c                             # 02fc0
 bne-    major_0x02ccc_0x524                          # 02fc4
@@ -4140,7 +4146,7 @@ mr       r9, r29                                     # 0301c
 mr       r8, r31                                     # 03020
 bl      major_0x13e4c                                # 03024
 lwz     r16,  0x0064(r31)                            # 03028
-srwi     r8,  r7,  0x18                              # 0302c
+srwi     r8,  r7, 24                                 # 0302c
 rlwinm. r16, r16,  0,  9,  9                         # 03030
 cmpwi    cr1,  r8,  0x14                             # 03034
 bne-    major_0x02ccc_0x524                          # 03038
@@ -4180,7 +4186,7 @@ beq-     cr2, major_0x02ccc_0x430                    # 0309c
 major_0x02ccc_0x3d4:
 lwz     r16,  0x0064(r31)                            # 030a0
 addi    r17, r31,  0x08                              # 030a4
-addi    r18, r31,  0xa0                              # 030a8
+addi    r18, r31, 160                                # 030a8
 stw     r18,  0x0000(r17)                            # 030ac
 stw     r18,  0x0008(r17)                            # 030b0
 lwz     r19,  0x000c(r18)                            # 030b4
@@ -4210,7 +4216,7 @@ bl      boring_with_crset                            # 03108
 mr.     r26,  r8                                     # 0310c
 beq-    major_0x02ccc_0x50c                          # 03110
 addi    r17, r31,  0x08                              # 03114
-addi    r18, r31,  0xa0                              # 03118
+addi    r18, r31, 160                                # 03118
 stw     r18,  0x0000(r17)                            # 0311c
 stw     r18,  0x0008(r17)                            # 03120
 lwz     r19,  0x000c(r18)                            # 03124
@@ -4730,7 +4736,7 @@ lwz     r19, -0x00cc(r30)                            # 0369c
 
 major_0x035a0_0x100:
 andis.  r28, r31,  0x800                             # 036a0
-addi    r29,  r1,  0x320                             # 036a4
+addi    r29,  r1, 800                                # 036a4
 bnel-   major_0x054b8                                # 036a8
 li      r28,  0x43                                   # 036ac
 and     r28, r31, r28                                # 036b0
@@ -5981,7 +5987,7 @@ lwz      r1, -0x0004( r1)                            # 04414
 cmpw     cr1,  r8,  r6                               # 04418
 beq-     cr1, major_0x043a0_0x154                    # 0441c
 mr      r27,  r8                                     # 04420
-addi    r29,  r1,  0x320                             # 04424
+addi    r29,  r1, 800                                # 04424
 bl      major_0x054b8                                # 04428
 clrlwi  r23,  r8,  0x14                              # 0442c
 beq-    major_0x043a0_0x154                          # 04430
@@ -5990,7 +5996,7 @@ mr       r9,  r8                                     # 04438
 mr       r8, r31                                     # 0443c
 ble-    major_0x043a0_0xc4                           # 04440
 addi    r27, r27,  0x1000                            # 04444
-addi    r29,  r1,  0x320                             # 04448
+addi    r29,  r1, 800                                # 04448
 bl      major_0x054b8                                # 0444c
 beq-    major_0x043a0_0x154                          # 04450
 addi    r31, r31, -0x1000                            # 04454
@@ -6456,7 +6462,7 @@ cmplwi   cr1,  r8,  0x00                             # 04780
 bge-    major_0x04700_0x150                          # 04784
 cmplwi   cr7,  r8,  0x08                             # 04788
 cmplwi   r8,  0x03                                   # 0478c
-slwi     r8,  r8,  0x02                              # 04790
+slwi     r8,  r8,  2                                 # 04790
 beq-     cr1, major_0x04700_0xac                     # 04794
 beq-     cr7, major_0x04700_0xd0                     # 04798
 beq-    major_0x04700_0xac                           # 0479c
@@ -6647,13 +6653,13 @@ SIGP:  /* < outside referer */
 mfspr   r23, 272/*sprg0*/                            # 048e0
 mtcr     r7                                          # 048e4
 lwz     r16, -0x001c(r23)                            # 048e8
-slwi    r20,  r3,  0x02                              # 048ec
+slwi    r20,  r3,  2                                 # 048ec
 stw     r16, -0x02ac(r23)                            # 048f0
 blt-     cr4, major_0x04a20_0x18                     # 048f4
 cmpwi    cr2,  r8,  0x00                             # 048f8
 lwz     r18, -0x0238(r23)                            # 048fc
 beq-     cr2, SIGP_0x28                              # 04900
-slwi    r20, r18,  0x02                              # 04904
+slwi    r20, r18,  2                                 # 04904
 
 SIGP_0x28:
 lwz     r22, -0x0338(r23)                            # 04908
@@ -6662,7 +6668,7 @@ lwz     r17,  0x0038(r22)                            # 04910
 lwz     r16,  0x0044(r22)                            # 04914
 mr.     r17, r17                                     # 04918
 beqlr-                                               # 0491c
-slwi    r16, r16,  0x02                              # 04920
+slwi    r16, r16,  2                                 # 04920
 li       r8, -0x7267                                 # 04924
 cmplw   r20, r16                                     # 04928
 bgelr-                                               # 0492c
@@ -6696,7 +6702,7 @@ stw     r17,  0x0134( r6)                            # 04990
 lwz     r17,  0x0648( r1)                            # 04994
 lhz     r16, -0x0116(r23)                            # 04998
 lwz     r19, -0x0964( r1)                            # 0499c
-slwi    r16, r16,  0x02                              # 049a0
+slwi    r16, r16,  2                                 # 049a0
 rlwinm  r19, r19,  0, 18, 15                         # 049a4
 lwz      r8,  0x003c(r22)                            # 049a8
 lwz      r9,  0x0040(r22)                            # 049ac
@@ -6707,7 +6713,7 @@ mtspr   26/*srr0*/, r18                              # 049bc
 mtspr   27/*srr1*/, r19                              # 049c0
 lwzx     r1,  r9, r16                                # 049c4
 lwz      r2,  0x0004(r20)                            # 049c8
-srwi     r3, r16,  0x02                              # 049cc
+srwi     r3, r16,  2                                 # 049cc
 ori      r7,  r7,  0x8000                            # 049d0
 mr      r16,  r6                                     # 049d4
 stw      r7, -0x0010(r23)                            # 049d8
@@ -7159,7 +7165,7 @@ beq-    major_0x04c20_0x12c                          # 04d34
 lhz     r16,  0x0000(r30)                            # 04d38
 rlwinm.  r8, r16,  0, 16, 16                         # 04d3c
 bne-    major_0x04c20_0x12c                          # 04d40
-srwi    r16, r16,  0x01                              # 04d44
+srwi    r16, r16,  1                                 # 04d44
 sth     r16,  0x0000(r30)                            # 04d48
 
 major_0x04c20_0x12c:
@@ -7226,7 +7232,7 @@ b       major_0x04c20_0x44                           # 04e14
 .long   0x418101bc                                   # 04e1c
 
 major_0x04c20_0x200:
-slwi    r28, r30,  0x0c                              # 04e20
+slwi    r28, r30, 12                                 # 04e20
 add     r31, r31, r28                                # 04e24
 
 major_0x04c20_0x208:
@@ -7332,7 +7338,7 @@ blr                                                  # 04f7c
 .long   0x40800068                                   # 04f84
 
 major_0x04c20_0x368:
-slwi    r28, r30,  0x02                              # 04f88
+slwi    r28, r30,  2                                 # 04f88
 rlwinm  r26, r31, 22,  0, 29                         # 04f8c
 lwzux   r28, r26, r28                                # 04f90
 lwz     r31,  0x0688( r1)                            # 04f94
@@ -7533,7 +7539,7 @@ cmpwi   r31,  0xa01                                  # 0524c
 bgt+     cr7, major_0x04c20_0x60c                    # 05250
 beq+    major_0x04c20_0x60c                          # 05254
 lwz     r26, -0x0004(r26)                            # 05258
-slwi    r30, r30,  0x02                              # 0525c
+slwi    r30, r30,  2                                 # 0525c
 rlwinm  r31, r26, 22, 30, 31                         # 05260
 cmpwi    cr7, r31,  0x03                             # 05264
 rlwinm  r26, r26, 22,  0, 29                         # 05268
@@ -7840,7 +7846,7 @@ major_0x16bb4
 
 major_0x055e0:  /* < outside referer */
 lhz     r29,  0x0f50( r1)                            # 055e0
-slwi    r29, r29,  0x0c                              # 055e4
+slwi    r29, r29, 12                                 # 055e4
 
 major_0x055e0_0x8:
 addi    r29, r29, -0x1000                            # 055e8
@@ -9234,11 +9240,11 @@ addi    r23, r23, -0x01                              # 069cc
 
 major_0x06870_0x160:
 cmpwi    cr1, r20,  0x00                             # 069d0
-slwi    r20, r20,  0x01                              # 069d4
+slwi    r20, r20,  1                                 # 069d4
 rlwimi  r20, r21,  1, 31, 31                         # 069d8
 cmplw    cr2, r20, r19                               # 069dc
 rlwinm. r24, r24,  1,  0, 30                         # 069e0
-slwi    r21, r21,  0x01                              # 069e4
+slwi    r21, r21,  1                                 # 069e4
 blt-     cr1, major_0x06870_0x180                    # 069e8
 blt-     cr2, major_0x06870_0x188                    # 069ec
 
@@ -9309,7 +9315,7 @@ lwz     r27,  0x0000(r10)                            # 06aa4
 mtmsr   r14                                          # 06aa8
 isync                                                # 06aac
 mtspr   275/*sprg3*/, r24                            # 06ab0
-srwi    r23, r27,  0x1a                              # 06ab4
+srwi    r23, r27, 26                                 # 06ab4
 cmpwi    cr6, r23,  0x09                             # 06ab8
 cmpwi   r23,  0x16                                   # 06abc
 cmpwi    cr1, r23,  0x1f                             # 06ac0
@@ -10033,7 +10039,7 @@ li       r8,  0x80                                   # 07520
 stvx     v8, r24,  r8                                # 07524
 li       r9,  0x90                                   # 07528
 stvx     v9, r24,  r9                                # 0752c
-li       r8,  0xa0                                   # 07530
+li       r8, 160                                     # 07530
 stvx    v10, r24,  r8                                # 07534
 li       r9,  0xb0                                   # 07538
 stvx    v11, r24,  r9                                # 0753c
@@ -10043,7 +10049,7 @@ li       r9,  0xd0                                   # 07548
 stvx    v13, r24,  r9                                # 0754c
 li       r8,  0xe0                                   # 07550
 stvx    v14, r24,  r8                                # 07554
-li       r9,  0xf0                                   # 07558
+li       r9, 240                                     # 07558
 stvx    v15, r24,  r9                                # 0755c
 li       r8,  0x100                                  # 07560
 stvx    v16, r24,  r8                                # 07564
@@ -10053,7 +10059,7 @@ li       r8,  0x120                                  # 07570
 stvx    v18, r24,  r8                                # 07574
 li       r9,  0x130                                  # 07578
 stvx    v19, r24,  r9                                # 0757c
-li       r8,  0x140                                  # 07580
+li       r8, 320                                     # 07580
 stvx    v20, r24,  r8                                # 07584
 li       r9,  0x150                                  # 07588
 stvx    v21, r24,  r9                                # 0758c
@@ -10063,7 +10069,7 @@ li       r9,  0x170                                  # 07598
 stvx    v23, r24,  r9                                # 0759c
 li       r8,  0x180                                  # 075a0
 stvx    v24, r24,  r8                                # 075a4
-li       r9,  0x190                                  # 075a8
+li       r9, 400                                     # 075a8
 stvx    v25, r24,  r9                                # 075ac
 li       r8,  0x1a0                                  # 075b0
 stvx    v26, r24,  r8                                # 075b4
@@ -10073,7 +10079,7 @@ li       r8,  0x1c0                                  # 075c0
 stvx    v28, r24,  r8                                # 075c4
 li       r9,  0x1d0                                  # 075c8
 stvx    v29, r24,  r9                                # 075cc
-li       r8,  0x1e0                                  # 075d0
+li       r8, 480                                     # 075d0
 stvx    v30, r24,  r8                                # 075d4
 li       r9,  0x1f0                                  # 075d8
 stvx    v31, r24,  r9                                # 075dc
@@ -10175,7 +10181,7 @@ li       r8,  0x80                                   # 076f8
 lvx      v8, r24,  r8                                # 076fc
 li       r8,  0x90                                   # 07700
 lvx      v9, r24,  r8                                # 07704
-li       r8,  0xa0                                   # 07708
+li       r8, 160                                     # 07708
 lvx     v10, r24,  r8                                # 0770c
 li       r8,  0xb0                                   # 07710
 lvx     v11, r24,  r8                                # 07714
@@ -10185,7 +10191,7 @@ li       r8,  0xd0                                   # 07720
 lvx     v13, r24,  r8                                # 07724
 li       r8,  0xe0                                   # 07728
 lvx     v14, r24,  r8                                # 0772c
-li       r8,  0xf0                                   # 07730
+li       r8, 240                                     # 07730
 lvx     v15, r24,  r8                                # 07734
 li       r8,  0x100                                  # 07738
 lvx     v16, r24,  r8                                # 0773c
@@ -10195,7 +10201,7 @@ li       r8,  0x120                                  # 07748
 lvx     v18, r24,  r8                                # 0774c
 li       r8,  0x130                                  # 07750
 lvx     v19, r24,  r8                                # 07754
-li       r8,  0x140                                  # 07758
+li       r8, 320                                     # 07758
 lvx     v20, r24,  r8                                # 0775c
 li       r8,  0x150                                  # 07760
 lvx     v21, r24,  r8                                # 07764
@@ -10205,7 +10211,7 @@ li       r8,  0x170                                  # 07770
 lvx     v23, r24,  r8                                # 07774
 li       r8,  0x180                                  # 07778
 lvx     v24, r24,  r8                                # 0777c
-li       r8,  0x190                                  # 07780
+li       r8, 400                                     # 07780
 lvx     v25, r24,  r8                                # 07784
 li       r8,  0x1a0                                  # 07788
 lvx     v26, r24,  r8                                # 0778c
@@ -10215,7 +10221,7 @@ li       r8,  0x1c0                                  # 07798
 lvx     v28, r24,  r8                                # 0779c
 li       r8,  0x1d0                                  # 077a0
 lvx     v29, r24,  r8                                # 077a4
-li       r8,  0x1e0                                  # 077a8
+li       r8, 480                                     # 077a8
 lvx     v30, r24,  r8                                # 077ac
 li       r8,  0x1f0                                  # 077b0
 lvx     v31, r24,  r8                                # 077b4
@@ -10371,7 +10377,7 @@ major_0x07658
 lis      r8,      major_0x07980@h                    # 0795c
 ori      r8,  r8, major_0x07980@l                    # 07960
 add      r8,  r8,  r9                                # 07964
-srwi     r9, r18,  0x01                              # 07968
+srwi     r9, r18,  1                                 # 07968
 add      r8,  r8,  r9                                # 0796c
 mtlr     r8                                          # 07970
 blr                                                  # 07974
@@ -10487,7 +10493,7 @@ major_0x07980
 lis      r8,      major_0x07ac0@h                    # 07a88
 ori      r8,  r8, major_0x07ac0@l                    # 07a8c
 add      r8,  r8,  r9                                # 07a90
-srwi     r9, r18,  0x01                              # 07a94
+srwi     r9, r18,  1                                 # 07a94
 add      r8,  r8,  r9                                # 07a98
 mtlr     r8                                          # 07a9c
 blr                                                  # 07aa0
@@ -11395,7 +11401,7 @@ stw     r14,  0x0038( r8)                            # 08664
 stw     r15,  0x003c( r8)                            # 08668
 stw     r16,  0x0040( r8)                            # 0866c
 mfspr    r9, 287/*pvr*/                              # 08670
-srwi     r9,  r9,  0x10                              # 08674
+srwi     r9,  r9, 16                                 # 08674
 cmpwi    cr2,  r9,  0x09                             # 08678
 beq-    major_0x08640_0x44                           # 0867c
 cmpwi    cr2,  r9,  0x0a                             # 08680
@@ -11575,7 +11581,7 @@ bl      print_string                                 # 08878
 addi    r29,  r1,  0x1000                            # 0887c
 
 major_0x08794_0xec:
-srwi     r4, r31,  0x0c                              # 08880
+srwi     r4, r31, 12                                 # 08880
 lwz      r9,  0x06a8( r1)                            # 08884
 bl      major_0x08794_0x1268                         # 08888
 bge-     cr4, major_0x08794_0x11c                    # 0888c
@@ -12700,7 +12706,7 @@ b       major_0x08794_0x30                           # 088b8
 major_0x08794_0x1268:  /* < outside referer */
 cmplw    cr4,  r4,  r9                               # 099fc
 lwz     r15,  0x06b0( r1)                            # 09a00
-slwi     r8,  r4,  0x02                              # 09a04
+slwi     r8,  r4,  2                                 # 09a04
 bge-     cr4, major_0x08794_0x12a8                   # 09a08
 
 major_0x08794_0x1278:
@@ -12745,13 +12751,13 @@ cmpwi    cr7, r16,  0xc00                            # 09a88
 beq-    major_0x08794_0x1314                         # 09a8c
 beq-     cr6, major_0x08794_0x131c                   # 09a90
 bne+     cr7, major_0x08794_0x1c                     # 09a94
-slwi     r8,  r8,  0x02                              # 09a98
+slwi     r8,  r8,  2                                 # 09a98
 rlwinm  r15,  r9, 22,  0, 29                         # 09a9c
 crset   4*cr4 + lt                                   # 09aa0
 b       major_0x08794_0x1278                         # 09aa4
 
 major_0x08794_0x1314:
-slwi     r8,  r8,  0x0c                              # 09aa8
+slwi     r8,  r8, 12                                 # 09aa8
 add      r9,  r9,  r8                                # 09aac
 
 major_0x08794_0x131c:
@@ -12773,7 +12779,7 @@ mfspr    r9, 287/*pvr*/                              # 09ae0
 clrlwi   r8,  r8,  0x01                              # 09ae4
 rlwinm.  r9,  r9,  0,  0, 14                         # 09ae8
 stw      r8,  0x0000(r14)                            # 09aec
-slwi     r9,  r4,  0x0c                              # 09af0
+slwi     r9,  r4, 12                                 # 09af0
 sync                                                 # 09af4
 tlbie    r9                                          # 09af8
 beq-    major_0x08794_0x1374                         # 09afc
@@ -12816,10 +12822,10 @@ b       major_0x08794_0x1394                         # 09b70
 major_0x08794_0x13e0:  /* < outside referer */
 lwz      r8,  0x06a0( r1)                            # 09b74
 lwz     r14,  0x06a4( r1)                            # 09b78
-slwi     r9,  r4,  0x0c                              # 09b7c
+slwi     r9,  r4, 12                                 # 09b7c
 mfsrin   r6,  r9                                     # 09b80
 xor      r9,  r6,  r4                                # 09b84
-slwi     r7,  r9,  0x06                              # 09b88
+slwi     r7,  r9,  6                                 # 09b88
 and      r8,  r8,  r7                                # 09b8c
 lwzux    r7, r14,  r8                                # 09b90
 lwz      r8,  0x0008(r14)                            # 09b94
@@ -12885,7 +12891,7 @@ mr       r5, r31                                     # 09c58
 mr      r16, r28                                     # 09c5c
 mr      r14, r26                                     # 09c60
 mflr     r6                                          # 09c64
-slwi    r27,  r4,  0x0c                              # 09c68
+slwi    r27,  r4, 12                                 # 09c68
 bl      major_0x04c20                                # 09c6c
 bnel+   _dbgr_0x08620                                # 09c70
 mr      r27,  r7                                     # 09c74
@@ -13016,7 +13022,7 @@ mtspr   275/*sprg3*/,  r8                            # 09d7c
 rlwinm  r26,  r3,  0, 29, 29                         # 09d80
 clrlwi   r3,  r3,  0x1e                              # 09d84
 lbz      r8,  0x06b8( r1)                            # 09d88
-slwi     r3,  r3,  0x01                              # 09d8c
+slwi     r3,  r3,  1                                 # 09d8c
 addi     r3,  r3,  0x1a                              # 09d90
 rlwnm    r3,  r8,  r3,  0x1e,  0x1f                  # 09d94
 cmpwi    r3,  0x00                                   # 09d98
@@ -13786,16 +13792,16 @@ stw     r31,  0x01fc( r6)                            # 0a734
 bnel+   major_0x03da0_0x12c                          # 0a738
 stw     r11,  0x00a4( r6)                            # 0a73c
 mr      r27,  r3                                     # 0a740
-addi    r29,  r1,  0x320 # kdp.0x320                 # 0a744
+addi    r29,  r1, 800 # kdp.0x320                    # 0a744
 bl      major_0x054b8                                # 0a748
 beql+   _dbgr_0x0a620                                # 0a74c
 rlwimi   r3, r31,  0,  0, 19                         # 0a750
 lhz      r8,  0x0004( r3)                            # 0a754
 cmpwi    r8,  0x00                                   # 0a758
 beq-    rtas_call_0x14c                              # 0a75c
-slwi     r8,  r8,  0x02                              # 0a760
+slwi     r8,  r8,  2                                 # 0a760
 lwzx    r27,  r8,  r3                                # 0a764
-addi    r29,  r1,  0x320 # kdp.0x320                 # 0a768
+addi    r29,  r1, 800 # kdp.0x320                    # 0a768
 bl      major_0x054b8                                # 0a76c
 beql+   _dbgr_0x0a620                                # 0a770
 lwzx     r9,  r8,  r3                                # 0a774
@@ -13926,7 +13932,7 @@ andi.    r8,  r8,  0x01                              # 0a8dc
 beq-    major_0x0a8c0_0x178                          # 0a8e0
 rlwinm.  r9,  r3,  0,  2,  2                         # 0a8e4
 bnel-   major_0x0a8c0_0x1e4                          # 0a8e8
-srwi     r8,  r3,  0x1e                              # 0a8ec
+srwi     r8,  r3, 30                                 # 0a8ec
 cmpwi    r8,  0x03                                   # 0a8f0
 beq-    major_0x0a8c0_0xd8                           # 0a8f4
 clrlwi   r8,  r3,  0x10                              # 0a8f8
@@ -13952,7 +13958,7 @@ b       major_0x0a8c0_0x1c4                          # 0a930
 major_0x0a8c0_0x74:
 bl      major_0x0a8c0_0x258                          # 0a934
 rlwinm  r22,  r3,  0,  4,  5                         # 0a938
-srwi    r22, r22,  0x0c                              # 0a93c
+srwi    r22, r22, 12                                 # 0a93c
 mfspr   r21, 1008/*hid0*/                            # 0a940
 andc    r21, r21, r22                                # 0a944
 sync                                                 # 0a948
@@ -13962,7 +13968,7 @@ b       major_0x0a8c0_0x1c4                          # 0a954
 
 major_0x0a8c0_0x98:
 rlwinm  r22,  r3,  0,  4,  5                         # 0a958
-srwi    r22, r22,  0x0c                              # 0a95c
+srwi    r22, r22, 12                                 # 0a95c
 mfspr   r21, 1008/*hid0*/                            # 0a960
 or      r21, r21, r22                                # 0a964
 sync                                                 # 0a968
@@ -14117,9 +14123,9 @@ lwz     r24,  0x0f68( r1)                            # 0ab48
 mtcr    r24                                          # 0ab4c
 bso-     cr6, major_0x0a8c0_0x350                    # 0ab50
 bne-     cr7, major_0x0a8c0_0x2a4                    # 0ab54
-slwi    r24,  r8,  0x01                              # 0ab58
+slwi    r24,  r8,  1                                 # 0ab58
 add      r8,  r8, r24                                # 0ab5c
-srwi     r8,  r8,  0x01                              # 0ab60
+srwi     r8,  r8,  1                                 # 0ab60
 
 major_0x0a8c0_0x2a4:
 srw      r8,  r8,  r9                                # 0ab64
@@ -15423,13 +15429,13 @@ lwz     r19,  0x0038(r14)                            # 0b2d4
 mr.     r19, r19                                     # 0b2d8
 bne+    major_0x0b07c_0x28                           # 0b2dc
 mr      r27,  r4                                     # 0b2e0
-addi    r29,  r1,  0x320                             # 0b2e4
+addi    r29,  r1, 800                                # 0b2e4
 bl      major_0x054b8                                # 0b2e8
 beq+    major_0x0af60_0xa4                           # 0b2ec
 rlwinm  r18, r31,  0,  0, 19                         # 0b2f0
 mr      r27, r16                                     # 0b2f4
 mr      r19, r16                                     # 0b2f8
-addi    r29,  r1,  0x320                             # 0b2fc
+addi    r29,  r1, 800                                # 0b2fc
 bl      major_0x054b8                                # 0b300
 beq+    major_0x0af60_0xa4                           # 0b304
 rlwimi  r19, r31,  0,  0, 19                         # 0b308
@@ -15439,7 +15445,7 @@ stw      r5,  0x0030(r14)                            # 0b314
 stw     r16,  0x0034(r14)                            # 0b318
 stw     r19,  0x0038(r14)                            # 0b31c
 lwz     r27,  0x0000(r19)                            # 0b320
-addi    r29,  r1,  0x320                             # 0b324
+addi    r29,  r1, 800                                # 0b324
 bl      major_0x054b8                                # 0b328
 beq+    major_0x0af60_0xa4                           # 0b32c
 rlwimi  r27, r31,  0,  0, 19                         # 0b330
@@ -15457,7 +15463,7 @@ bgt+    major_0x0af60_0xa4                           # 0b35c
 
 NKRegisterCpuPlugin_0x114:
 lwzu    r27,  0x0004(r16)                            # 0b360
-addi    r29,  r1,  0x320                             # 0b364
+addi    r29,  r1, 800                                # 0b364
 bl      major_0x054b8                                # 0b368
 beq+    major_0x0af60_0xa4                           # 0b36c
 addi    r17, r17, -0x01                              # 0b370
@@ -16292,7 +16298,7 @@ mr      r30,  r8                                     # 0b97c
 bne+    syscall_return_kMPInvalidIDErr               # 0b980
 
 major_0x0b960_0x24:
-li       r8,  0x3c0                                  # 0b984
+li       r8, 960                                     # 0b984
 bl      boring                                       # 0b988
 mr.     r31,  r8                                     # 0b98c
 beq+    major_0x0af60_0x20                           # 0b990
@@ -16503,7 +16509,7 @@ bl      print_string                                 # 0bbc8
 mr      r31,  r7                                     # 0bbcc
 rlwinm   r7,  r7,  0, 13, 11                         # 0bbd0
 lwz      r8, -0x041c( r1)                            # 0bbd4
-bl      major_0x0e330                                # 0bbd8
+bl      mktask                                       # 0bbd8
 mr       r7, r31                                     # 0bbdc
 mr.     r31,  r8                                     # 0bbe0
 beq+    major_0x0af60                                # 0bbe4
@@ -17337,7 +17343,7 @@ beq+     cr1, syscall_return_noErr                   # 0c274
 lis     r16,       0x3b9a                            # 0c278
 ori     r16, r16,  0xca00                            # 0c27c
 lwz     r17,  0x0f88( r1)                            # 0c280
-srwi    r17, r17,  0x07                              # 0c284
+srwi    r17, r17,  7                                 # 0c284
 divw    r18, r16,  r3                                # 0c288
 cmpw    r18, r17                                     # 0c28c
 bge-    NKSetClockDriftCorrection_0x64               # 0c290
@@ -17644,7 +17650,7 @@ and     r16, r16,  r3                                # 0c564
 
 major_0x0c52c_0x3c:
 stw     r16,  0x0edc( r1)                            # 0c568
-srawi   r16,  r4,  0x10                              # 0c56c
+srawi   r16,  r4, 16                                 # 0c56c
 extsh   r17,  r4                                     # 0c570
 cmpwi   r16, -0x01                                   # 0c574
 cmpwi    cr1, r17, -0x01                             # 0c578
@@ -17664,7 +17670,7 @@ major_0x0c52c_0x6c:
 sth     r17, -0x035e( r1)                            # 0c598
 
 major_0x0c52c_0x70:
-srawi   r16,  r5,  0x10                              # 0c59c
+srawi   r16,  r5, 16                                 # 0c59c
 extsh   r17,  r5                                     # 0c5a0
 cmpwi   r16, -0x01                                   # 0c5a4
 cmpwi    cr1, r17, -0x01                             # 0c5a8
@@ -18211,7 +18217,13 @@ beq-    major_0x0c968_0x154                          # 0ca7c
 stb     r16,  0x0014(r30)                            # 0ca80
 stw     r19,  0x0018(r30)                            # 0ca84
 mr       r8, r17                                     # 0ca88
-bl      major_0x130f0_0x618                          # 0ca8c
+
+# r1 = kdp
+# r8 = multiple (pos: /250; neg: /250000)
+bl      scale_timebase                               # 0ca8c
+# r8 = hi
+# r9 = lo
+
 mr      r27,  r8                                     # 0ca90
 mr      r28,  r9                                     # 0ca94
 bl      bizarre                                      # 0ca98
@@ -18409,7 +18421,13 @@ beq-    major_0x0cb8c_0xec                           # 0cc38
 stb     r17,  0x0014(r30)                            # 0cc3c
 stw      r8,  0x0018(r30)                            # 0cc40
 mr       r8,  r4                                     # 0cc44
-bl      major_0x130f0_0x618                          # 0cc48
+
+# r1 = kdp
+# r8 = multiple (pos: /250; neg: /250000)
+bl      scale_timebase                               # 0cc48
+# r8 = hi
+# r9 = lo
+
 mr      r27,  r8                                     # 0cc4c
 mr      r28,  r9                                     # 0cc50
 bl      bizarre                                      # 0cc54
@@ -18819,7 +18837,13 @@ li       r8,  0x02                                   # 0cfcc
 stw     r30,  0x0018(r29)                            # 0cfd0
 stb      r8,  0x0014(r29)                            # 0cfd4
 mr       r8,  r4                                     # 0cfd8
-bl      major_0x130f0_0x618                          # 0cfdc
+
+# r1 = kdp
+# r8 = multiple (pos: /250; neg: /250000)
+bl      scale_timebase                               # 0cfdc
+# r8 = hi
+# r9 = lo
+
 mr      r27,  r8                                     # 0cfe0
 mr      r28,  r9                                     # 0cfe4
 bl      bizarre                                      # 0cfe8
@@ -19324,7 +19348,7 @@ bl      dbgr                                         # 0d460
 
 major_0x0d35c_0x108:
 cmplw   r16, r19                                     # 0d464
-srwi    r16, r16,  0x02                              # 0d468
+srwi    r16, r16,  2                                 # 0d468
 blt-    major_0x0d35c_0x1a0                          # 0d46c
 stw     r16,  0x00d0(r17)                            # 0d470
 
@@ -19456,7 +19480,7 @@ subf.   r19,  r9, r19                                # 0d5b0
 bgt+    major_0x0d504_0xa0                           # 0d5b4
 
 major_0x0d504_0xb4:
-srwi    r19, r19,  0x02                              # 0d5b8
+srwi    r19, r19,  2                                 # 0d5b8
 stw     r19,  0x00d0(r17)                            # 0d5bc
 
 # r1 = kdp
@@ -19497,7 +19521,13 @@ beq-    major_0x0d504_0x170                          # 0d634
 stb     r16,  0x0014(r30)                            # 0d638
 stw     r19,  0x0018(r30)                            # 0d63c
 mr       r8,  r5                                     # 0d640
-bl      major_0x130f0_0x618                          # 0d644
+
+# r1 = kdp
+# r8 = multiple (pos: /250; neg: /250000)
+bl      scale_timebase                               # 0d644
+# r8 = hi
+# r9 = lo
+
 mr      r27,  r8                                     # 0d648
 mr      r28,  r9                                     # 0d64c
 bl      bizarre                                      # 0d650
@@ -19882,7 +19912,13 @@ lwz     r16,  0x0134( r6)                            # 0d93c
 rlwinm.  r9, r16,  0, 29, 29                         # 0d940
 mr       r8,  r4                                     # 0d944
 beq-    major_0x0d8a0_0xb8                           # 0d948
-bl      major_0x130f0_0x618                          # 0d94c
+
+# r1 = kdp
+# r8 = multiple (pos: /250; neg: /250000)
+bl      scale_timebase                               # 0d94c
+# r8 = hi
+# r9 = lo
+
 mr       r4,  r8                                     # 0d950
 mr       r5,  r9                                     # 0d954
 
@@ -20897,7 +20933,7 @@ b       syscall_return_assert_lock_unheld            # 0e264
 ************************************************************
 
 Xrefs:
-major_0x0e330
+mktask
 major_0x0e548
 major_0x0ec8c
 major_0x0f050
@@ -20948,7 +20984,7 @@ bne+    major_0x0b07c_0x28                           # 0e2b4
 lwz     r16,  0x0008(r30)                            # 0e2b8
 rlwinm. r17, r16,  0, 30, 30                         # 0e2bc
 bne+    major_0x0af60_0xa4                           # 0e2c0
-bl      major_0x0e330                                # 0e2c4
+bl      mktask                                       # 0e2c4
 mr.     r31,  r8                                     # 0e2c8
 beq+    major_0x0af60                                # 0e2cc
 mfspr   r15, 272/*sprg0*/                            # 0e2d0
@@ -20986,7 +21022,7 @@ b       syscall_return_assert_lock_unheld            # 0e32c
 
 /***********************************************************
 
-                       major_0x0e330                        
+                           mktask                           
 
 ************************************************************
 
@@ -20997,17 +21033,17 @@ major_0x0e284
 
 ***********************************************************/
 
-major_0x0e330:  /* < outside referer */
+mktask:  /* < outside referer */
 mr      r27,  r8                                     # 0e330
 mflr    r29                                          # 0e334
 li       r8,  0x400                                  # 0e338
 bl      boring                                       # 0e33c
 mr.     r28,  r8                                     # 0e340
-beq-    major_0x0e330_0x20c                          # 0e344
+beq-    mktask_0x20c                                 # 0e344
 li       r9,  0x02                                   # 0e348
 bl      major_0x151b0                                # 0e34c
 cmpwi    r8,  0x00                                   # 0e350
-beq-    major_0x0e330_0x204                          # 0e354
+beq-    mktask_0x204                                 # 0e354
 stw      r8,  0x0000(r28)                            # 0e358
 lis      r8,       0x5441                            # 0e35c
 ori      r8,  r8,  0x534b                            # 0e360
@@ -21019,11 +21055,11 @@ li       r8,  0x1c                                   # 0e374
 bl      boring                                       # 0e378
 cmpwi    r8,  0x00                                   # 0e37c
 stw      r8,  0x009c(r28)                            # 0e380
-beq-    major_0x0e330_0x1fc                          # 0e384
+beq-    mktask_0x1fc                                 # 0e384
 lis      r9,       0x6e6f                            # 0e388
 ori      r9,  r9,  0x7465                            # 0e38c
 stw      r9,  0x0004( r8)                            # 0e390
-addi    r16, r28,  0xa0                              # 0e394
+addi    r16, r28, 160                                # 0e394
 lis     r17,       0x5345                            # 0e398
 stw     r16,  0x0008(r16)                            # 0e39c
 ori     r17, r17,  0x4d41                            # 0e3a0
@@ -21033,33 +21069,33 @@ li      r16,  0x01                                   # 0e3ac
 stw     r16,  0x00b4(r28)                            # 0e3b0
 li      r16,  0x00                                   # 0e3b4
 stw     r16,  0x00b0(r28)                            # 0e3b8
-addi     r8, r28,  0xa0                              # 0e3bc
+addi     r8, r28, 160                                # 0e3bc
 li       r9,  0x05                                   # 0e3c0
 bl      major_0x151b0                                # 0e3c4
 cmpwi    r8,  0x00                                   # 0e3c8
-beq-    major_0x0e330_0x1f4                          # 0e3cc
+beq-    mktask_0x1f4                                 # 0e3cc
 stw      r8,  0x00a0(r28)                            # 0e3d0
 rlwinm.  r8,  r7,  0, 12, 12                         # 0e3d4
-beq-    major_0x0e330_0xe8                           # 0e3d8
+beq-    mktask_0xe8                                  # 0e3d8
 li       r8,  0x214                                  # 0e3dc
 bl      boring                                       # 0e3e0
 andi.    r9,  r8,  0x0f                              # 0e3e4
 cmpwi    cr1,  r8,  0x00                             # 0e3e8
 bne+    _dbgr_0x0e280                                # 0e3ec
-beq-     cr1, major_0x0e330_0x1ec                    # 0e3f0
+beq-     cr1, mktask_0x1ec                           # 0e3f0
 stw      r8,  0x008c(r28)                            # 0e3f4
 stw      r8,  0x01d8(r28)                            # 0e3f8
 li      r16,  0x80                                   # 0e3fc
 addi     r8,  r8, -0x04                              # 0e400
 lwz     r17, -0x08e0( r1)                            # 0e404
 
-major_0x0e330_0xd8:
+mktask_0xd8:
 addi    r16, r16, -0x01                              # 0e408
 stwu    r17,  0x0004( r8)                            # 0e40c
 cmpwi   r16,  0x00                                   # 0e410
-bgt+    major_0x0e330_0xd8                           # 0e414
+bgt+    mktask_0xd8                                  # 0e414
 
-major_0x0e330_0xe8:
+mktask_0xe8:
 addi    r16,  r1, -0xa44                             # 0e418
 addi    r17, r28,  0x08                              # 0e41c
 stw     r16,  0x0000(r17)                            # 0e420
@@ -21077,7 +21113,7 @@ ori     r16, r16,  0x6d65                            # 0e44c
 stw     r16,  0x0024(r28)                            # 0e450
 li      r16,  0x01                                   # 0e454
 stb     r16,  0x0036(r28)                            # 0e458
-li      r16,  0x64                                   # 0e45c
+li      r16, 100                                     # 0e45c
 stw     r16,  0x001c(r28)                            # 0e460
 li      r16,  0x02                                   # 0e464
 stb     r16,  0x0019(r28)                            # 0e468
@@ -21126,23 +21162,23 @@ mtlr    r29                                          # 0e510
 mr       r8, r28                                     # 0e514
 blr                                                  # 0e518
 
-major_0x0e330_0x1ec:
+mktask_0x1ec:
 lwz      r8,  0x00a0(r28)                            # 0e51c
 bl      major_0x15300                                # 0e520
 
-major_0x0e330_0x1f4:
+mktask_0x1f4:
 lwz      r8,  0x009c(r28)                            # 0e524
 bl      looks_like_poolextend                        # 0e528
 
-major_0x0e330_0x1fc:
+mktask_0x1fc:
 lwz      r8,  0x0000(r28)                            # 0e52c
 bl      major_0x15300                                # 0e530
 
-major_0x0e330_0x204:
+mktask_0x204:
 mr       r8, r28                                     # 0e534
 bl      looks_like_poolextend                        # 0e538
 
-major_0x0e330_0x20c:
+mktask_0x20c:
 mtlr    r29                                          # 0e53c
 li       r8,  0x00                                   # 0e540
 blr                                                  # 0e544
@@ -21533,7 +21569,7 @@ syscall
 
 major_0x0e894:  /* < outside referer */
 cmpwi    r4,  0x01                                   # 0e894
-cmpwi    cr1,  r4,  0x2710                           # 0e898
+cmpwi    cr1,  r4, 10000                             # 0e898
 blt+    syscall_return_kMPInvalidIDErr               # 0e89c
 bgt+     cr1, syscall_return_kMPInvalidIDErr         # 0e8a0
 mr      r16,  r8                                     # 0e8a4
@@ -22780,7 +22816,7 @@ lwz     r17, -0x042c( r1)                            # 0f3f4
 lwz     r16,  0x06ac( r1)                            # 0f3f8
 add     r17, r17, r16                                # 0f3fc
 stw     r17, -0x042c( r1)                            # 0f400
-addi    r27,  r1,  0x78                              # 0f404
+addi    r27,  r1, 120                                # 0f404
 lis     r26,       0x00                              # 0f408
 
 convert_pmdts_to_areas_0x54:
@@ -22806,7 +22842,7 @@ bne+     cr3, convert_pmdts_to_areas_0x5c            # 0f444
 addis   r26, r26,  0x1000                            # 0f448
 cmplwi  r26,  0x00                                   # 0f44c
 bne+    convert_pmdts_to_areas_0x54                  # 0f450
-li       r8,  0xa0                                   # 0f454
+li       r8, 160                                     # 0f454
 bl      boring                                       # 0f458
 mr.     r31,  r8                                     # 0f45c
 beq+    _dbgr_0x0f380                                # 0f460
@@ -22833,7 +22869,7 @@ mr       r8, r31                                     # 0f4b0
 bl      looks_like_poolextend                        # 0f4b4
 
 convert_pmdts_to_areas_0x100:
-li       r8,  0xa0                                   # 0f4b8
+li       r8, 160                                     # 0f4b8
 bl      boring                                       # 0f4bc
 mr.     r31,  r8                                     # 0f4c0
 beq+    _dbgr_0x0f380                                # 0f4c4
@@ -22877,7 +22913,7 @@ li       r8,  0x00                                   # 0f548
 stw      r8, -0x026c( r1)                            # 0f54c
 
 convert_pmdts_to_areas_0x198:
-li       r8,  0xa0                                   # 0f550
+li       r8, 160                                     # 0f550
 bl      boring                                       # 0f554
 mr.     r31,  r8                                     # 0f558
 beq+    _dbgr_0x0f380                                # 0f55c
@@ -22887,10 +22923,10 @@ lhz     r16,  0x0002(r25)                            # 0f568
 lis      r8,       0x6172                            # 0f56c
 ori      r8,  r8,  0x6561                            # 0f570
 stw      r8,  0x0004(r31)                            # 0f574
-slwi    r15, r15,  0x0c                              # 0f578
+slwi    r15, r15, 12                                 # 0f578
 addi    r16, r16,  0x01                              # 0f57c
 add     r15, r15, r26                                # 0f580
-slwi    r16, r16,  0x0c                              # 0f584
+slwi    r16, r16, 12                                 # 0f584
 lwz      r8,  0x0ec0( r1)                            # 0f588
 stw      r8,  0x000c(r31)                            # 0f58c
 lwz      r8, -0x001c( r1)                            # 0f590
@@ -22941,7 +22977,7 @@ lwz     r15,  0x0028(r24)                            # 0f630
 lwz     r16, -0x0270( r1)                            # 0f634
 subf.   r16, r15, r16                                # 0f638
 ble+    convert_pmdts_to_areas_0x5c                  # 0f63c
-li       r8,  0xa0                                   # 0f640
+li       r8, 160                                     # 0f640
 bl      boring                                       # 0f644
 mr.     r31,  r8                                     # 0f648
 beq+    _dbgr_0x0f380                                # 0f64c
@@ -22970,7 +23006,7 @@ stw      r8,  0x0070(r31)                            # 0f694
 b       convert_pmdts_to_areas_0x214                 # 0f698
 
 convert_pmdts_to_areas_0x2e4:
-li       r8,  0xa0                                   # 0f69c
+li       r8, 160                                     # 0f69c
 bl      boring                                       # 0f6a0
 mr.     r31,  r8                                     # 0f6a4
 beq+    _dbgr_0x0f380                                # 0f6a8
@@ -22980,10 +23016,10 @@ lhz     r16,  0x0002(r25)                            # 0f6b4
 lis      r8,       0x6172                            # 0f6b8
 ori      r8,  r8,  0x6561                            # 0f6bc
 stw      r8,  0x0004(r31)                            # 0f6c0
-slwi    r15, r15,  0x0c                              # 0f6c4
+slwi    r15, r15, 12                                 # 0f6c4
 addi    r16, r16,  0x01                              # 0f6c8
 add     r15, r15, r26                                # 0f6cc
-slwi    r16, r16,  0x0c                              # 0f6d0
+slwi    r16, r16, 12                                 # 0f6d0
 lwz      r8,  0x0ec0( r1)                            # 0f6d4
 stw      r8,  0x000c(r31)                            # 0f6d8
 lwz      r8, -0x001c( r1)                            # 0f6dc
@@ -23246,7 +23282,7 @@ stw     r16,  0x0008(r16)                            # 0f938
 ori     r17, r17,  0x6561                            # 0f93c
 stw     r16,  0x000c(r16)                            # 0f940
 stw     r17,  0x0004(r16)                            # 0f944
-li       r8,  0xa0                                   # 0f948
+li       r8, 160                                     # 0f948
 bl      boring                                       # 0f94c
 mr.     r29,  r8                                     # 0f950
 beq-    NKCreateAddressSpaceSub_0x1a0                # 0f954
@@ -23527,7 +23563,7 @@ mr      r30,  r8                                     # 0fb64
 bne+    major_0x0b07c_0x28                           # 0fb68
 
 major_0x0fb34_0x38:
-li       r8,  0xa0                                   # 0fb6c
+li       r8, 160                                     # 0fb6c
 bl      boring                                       # 0fb70
 mr.     r31,  r8                                     # 0fb74
 beq+    major_0x0af60                                # 0fb78
@@ -23870,7 +23906,7 @@ cmpwi    r8,  0x00                                   # 0ffe4
 stw      r8,  0x0040(r31)                            # 0ffe8
 beq-    createarea_0x460                             # 0ffec
 lwz      r9,  0x002c(r31)                            # 0fff0
-srwi     r9,  r9,  0x0c                              # 0fff4
+srwi     r9,  r9, 12                                 # 0fff4
 bl      major_0x10284                                # 0fff8
 lwz     r17,  0x0008(r31)                            # 0fffc
 ori     r17, r17,  0x10                              # 10000
@@ -23888,7 +23924,7 @@ cmpwi    r8,  0x00                                   # 10024
 stw      r8,  0x003c(r31)                            # 10028
 beq-    createarea_0x460                             # 1002c
 lwz      r9,  0x002c(r31)                            # 10030
-srwi     r9,  r9,  0x0c                              # 10034
+srwi     r9,  r9, 12                                 # 10034
 bl      major_0x102a8                                # 10038
 lwz     r16,  0x0008(r31)                            # 1003c
 ori     r16, r16,  0x01                              # 10040
@@ -23913,7 +23949,7 @@ li      r27,  0x00                                   # 10070
 rlwinm.  r8, r17,  0, 25, 25                         # 10074
 bne-    createarea_0x4b4                             # 10078
 lwz     r27,  0x002c(r31)                            # 1007c
-srwi    r27, r27,  0x0c                              # 10080
+srwi    r27, r27, 12                                 # 10080
 cmpwi   r27,  0x400                                  # 10084
 ble-    createarea_0x4ac                             # 10088
 ori     r17, r17,  0x20                              # 1008c
@@ -23922,7 +23958,7 @@ addi    r27, r27,  0x400                             # 10094
 
 createarea_0x4ac:
 addi    r27, r27,  0x3ff                             # 10098
-srwi    r27, r27,  0x0a                              # 1009c
+srwi    r27, r27, 10                                 # 1009c
 
 createarea_0x4b4:
 lwz      r8,  0x0008(r31)                            # 100a0
@@ -23930,7 +23966,7 @@ li      r29,  0x00                                   # 100a4
 rlwinm.  r9,  r8,  0, 28, 28                         # 100a8
 bne-    createarea_0x4e8                             # 100ac
 lwz     r29,  0x002c(r31)                            # 100b0
-srwi    r29, r29,  0x0c                              # 100b4
+srwi    r29, r29, 12                                 # 100b4
 cmpwi   r29,  0x800                                  # 100b8
 ble-    createarea_0x4e0                             # 100bc
 ori      r8,  r8,  0x02                              # 100c0
@@ -23939,7 +23975,7 @@ addi    r29, r29,  0x800                             # 100c8
 
 createarea_0x4e0:
 addi    r29, r29,  0x7ff                             # 100cc
-srwi    r29, r29,  0x0b                              # 100d0
+srwi    r29, r29, 11                                 # 100d0
 
 createarea_0x4e8:
 lwz     r18, -0x0430( r1)                            # 100d4
@@ -24295,7 +24331,7 @@ mr      r30,  r8                                     # 1043c
 lwz     r16,  0x0008(r30)                            # 10440
 rlwinm.  r8, r16,  0, 28, 28                         # 10444
 bne+    major_0x0b054                                # 10448
-li       r8,  0xa0                                   # 1044c
+li       r8, 160                                     # 1044c
 bl      boring                                       # 10450
 mr.     r31,  r8                                     # 10454
 beq+    major_0x0af60                                # 10458
@@ -24447,10 +24483,10 @@ rlwinm. r16, r29,  0, 26, 26                         # 105fc
 beq-    major_0x104ec_0x14c                          # 10600
 lwz     r19,  0x002c(r31)                            # 10604
 mr      r20,  r8                                     # 10608
-srwi    r19, r19,  0x0c                              # 1060c
+srwi    r19, r19, 12                                 # 1060c
 addi    r19, r19,  0x3ff                             # 10610
-srwi    r19, r19,  0x0a                              # 10614
-slwi    r19, r19,  0x02                              # 10618
+srwi    r19, r19, 10                                 # 10614
+slwi    r19, r19,  2                                 # 10618
 addi    r19, r19, -0x04                              # 1061c
 
 major_0x104ec_0x134:
@@ -24501,10 +24537,10 @@ rlwinm. r16, r29,  0, 30, 30                         # 10690
 beq-    major_0x104ec_0x1e0                          # 10694
 lwz     r19,  0x002c(r31)                            # 10698
 mr      r20,  r8                                     # 1069c
-srwi    r19, r19,  0x0c                              # 106a0
+srwi    r19, r19, 12                                 # 106a0
 addi    r19, r19,  0x7ff                             # 106a4
-srwi    r19, r19,  0x0b                              # 106a8
-slwi    r19, r19,  0x02                              # 106ac
+srwi    r19, r19, 11                                 # 106a8
+slwi    r19, r19,  2                                 # 106ac
 addi    r19, r19, -0x04                              # 106b0
 
 major_0x104ec_0x1c8:
@@ -27550,7 +27586,7 @@ lwz      r8, -0x042c( r1)                            # 122b0
 cmpwi    r8,  0x00                                   # 122b4
 ble+    major_0x0af60_0xa4                           # 122b8
 lwz     r27, -0x0438( r1)                            # 122bc
-srwi    r27, r27,  0x0f                              # 122c0
+srwi    r27, r27, 15                                 # 122c0
 mfspr    r8, 22/*dec*/                               # 122c4
 subf    r27, r27,  r8                                # 122c8
 lwz      r8, -0x03f8( r1)                            # 122cc
@@ -28018,7 +28054,7 @@ major_0x0d70c
 major_0x0d8a0
 major_0x0da20
 major_0x0db04
-major_0x0e330
+mktask
 major_0x0ea58
 convert_pmdts_to_areas
 NKCreateAddressSpaceSub
@@ -28186,7 +28222,7 @@ major_0x0d70c
 major_0x0d798
 major_0x0da20
 major_0x0da8c
-major_0x0e330
+mktask
 major_0x0e604
 major_0x0e76c
 major_0x0ea58
@@ -28398,21 +28434,21 @@ bgt+    poolextend_zeroloop                          # 12b24
 #   Put the funny stuff in
 li      r16,  0xfe8                                  # 12b28
 stw     r16,  0x0000(r17)                            # 12b2c
-lis     r16,      -0x78be                            # 12b30
-ori     r16, r16,  0x474e                            # 12b34
+lis     r16,      (135<<8) + ('B')                   # 12b30
+ori     r16, r16, ('G'<<8) + ('N')                   # 12b34
 stw     r16,  0x0004(r17)                            # 12b38
 addi    r15, r17,  0x08                              # 12b3c
 li      r16,  0xfe0                                  # 12b40
 stw     r16,  0x0000(r15)                            # 12b44
-lis     r16,      -0x7894                            # 12b48
-ori     r16, r16,  0x6f63                            # 12b4c
+lis     r16,      (135<<8) + ('l')                   # 12b48
+ori     r16, r16, ('o'<<8) + ('c')                   # 12b4c
 stw     r16,  0x0004(r15)                            # 12b50
 addi    r15, r17,  0xfe8                             # 12b54
 lwz     r18, -0x0aa0( r1) # kdp.-0xaa0               # 12b58
 subf    r18, r15, r18                                # 12b5c
 stw     r18,  0x0000(r15)                            # 12b60
-lis     r16,      -0x78bb                            # 12b64
-ori     r16, r16,  0x4e44                            # 12b68
+lis     r16,      (135<<8) + ('E')                   # 12b64
+ori     r16, r16, ('N'<<8) + ('D')                   # 12b68
 stw     r16,  0x0004(r15)                            # 12b6c
 lwz     r16, -0x0a9c( r1) # kdp.-0xa9c               # 12b70
 stw     r16,  0x0008(r15)                            # 12b74
@@ -28935,7 +28971,6 @@ major_0x0dce8
 major_0x0e604
 say_nanodebugger_activated
 major_0x12e88
-init_ready_queues
 major_0x154e0
 
 ***********************************************************/
@@ -29353,28 +29388,54 @@ stb     r16,  0x0017( r8)                            # 136fc
 beq+    major_0x13060                                # 13700
 blr                                                  # 13704
 
-major_0x130f0_0x618:  /* < outside referer */
+
+
+/***********************************************************
+
+                       scale_timebase                       
+
+************************************************************
+
+Xrefs:
+major_0x0c968
+major_0x0cb8c
+major_0x0ced4
+major_0x0d504
+major_0x0d8a0
+init_rdyqs
+
+************************************************************
+
+> r1    = kdp
+> r8    = multiple (pos: /250; neg: /250000)
+
+< r8    = hi
+< r9    = lo
+
+***********************************************************/
+
+scale_timebase:  /* < outside referer */
 mr.     r17,  r8                                     # 13708
-li      r19,  0xfa                                   # 1370c
-lwz      r9,  0x0f2c( r1)                            # 13710
-bgt+    major_0x130f0_0x644                          # 13714
-blt+    major_0x130f0_0x638                          # 13718
+li      r19, 250                                     # 1370c
+lwz      r9,  0x0f2c( r1) # kdp.u32_timebase_freq    # 13710
+bgt+    scale_timebase_divisor_250                   # 13714
+blt+    scale_timebase_divisor_250000                # 13718
 li       r8,  0x00                                   # 1371c
 li       r9,  0x00                                   # 13720
 blr                                                  # 13724
 
-major_0x130f0_0x638:
+scale_timebase_divisor_250000:
 neg     r17, r17                                     # 13728
-lis     r19,       0x03                              # 1372c
-ori     r19, r19,  0xd090                            # 13730
+lis     r19,      250000@h                           # 1372c
+ori     r19, r19, 250000@l                           # 13730
 
-major_0x130f0_0x644:
+scale_timebase_divisor_250:
 divw    r19,  r9, r19                                # 13734
 mullw    r9, r19, r17                                # 13738
 mulhw    r8, r19, r17                                # 1373c
-srwi     r9,  r9,  0x02                              # 13740
+srwi     r9,  r9,  2                                 # 13740
 rlwimi   r9,  r8, 30,  0,  1                         # 13744
-srwi     r8,  r8,  0x02                              # 13748
+srwi     r8,  r8,  2                                 # 13748
 blr                                                  # 1374c
 
 
@@ -29394,7 +29455,7 @@ major_0x0ced4
 major_0x0d504
 major_0x0d70c
 major_0x0d9a8
-major_0x0e330
+mktask
 say_nanodebugger_activated
 major_0x13060
 major_0x142dc
@@ -29472,11 +29533,11 @@ b       dbgr                                         # 137c0
 
 /***********************************************************
 
-                     init_ready_queues                      
+                         init_rdyqs                         
 
 ************************************************************
 
-Really just named for its strings. Early boot. RDYQ
+Four queues, hardcoded. Not sure why. Each queue knows about 0.001042*tbfreq -- timeslicing quantum?
 
 ************************************************************
 
@@ -29489,12 +29550,18 @@ setup
 
 ***********************************************************/
 
-init_ready_queues:  /* < outside referer */
+init_rdyqs:  /* < outside referer */
 li      r16,  0x00                                   # 137c4
 stw     r16,  0x0ecc( r1) # kdp.0xecc                # 137c8
 mflr    r20                                          # 137cc
 li       r8, -0x412                                  # 137d0
-bl      major_0x130f0_0x618                          # 137d4
+
+# r1 = kdp
+# r8 = multiple (pos: /250; neg: /250000)
+bl      scale_timebase                               # 137d4
+# r8 = hi
+# r9 = lo
+
 mr      r16,  r8                                     # 137d8
 mr      r17,  r9                                     # 137dc
 mtlr    r20                                          # 137e0
@@ -29502,9 +29569,9 @@ li      r23,  0x00                                   # 137e4
 stw     r23, -0x0970( r1) # kdp.-0x970               # 137e8
 addi     r9,  r1, -0x9f0 # kdp.-0x9f0                # 137ec
 
-init_ready_queues_0x2c:
-lis      r8,       0x5244                            # 137f0
-ori      r8,  r8,  0x5951                            # 137f4
+init_rdyqs_0x2c:
+lis      r8,      ('R'<<8) + ('D')                   # 137f0
+ori      r8,  r8, ('Y'<<8) + ('Q')                   # 137f4
 stw      r8,  0x0004( r9)                            # 137f8
 stw      r9,  0x0008( r9)                            # 137fc
 stw      r9,  0x000c( r9)                            # 13800
@@ -29536,13 +29603,13 @@ bl      1f                                           # 13860
 1: mflr  r8                                          # 13868
 bl      print_string                                 # 1386c
 mtlr    r20                                          # 13870
-slwi    r16, r16,  0x03                              # 13874
+slwi    r16, r16,  3                                 # 13874
 rlwimi  r16, r17,  3, 29, 31                         # 13878
-slwi    r17, r17,  0x03                              # 1387c
+slwi    r17, r17,  3                                 # 1387c
 addi    r23, r23,  0x01                              # 13880
 cmpwi   r23,  0x04                                   # 13884
 addi     r9,  r9,  0x20                              # 13888
-blt+    init_ready_queues_0x2c                       # 1388c
+blt+    init_rdyqs_0x2c                              # 1388c
 lwz     r16,  0x0658( r1) # kdp.system_context       # 13890
 lwz     r17,  0x00cc(r16)                            # 13894
 andi.    r9, r17,  0x0f                              # 13898
@@ -29629,7 +29696,7 @@ dcbtst   r8,  r6                                     # 138dc
 stw     r21,  0x01ac( r6) # ewa.0x1ac                # 138e0
 stw     r22,  0x01b4( r6) # ewa.0x1b4                # 138e4
 stw     r23,  0x01bc( r6) # ewa.0x1bc                # 138e8
-li       r8,  0x1e0                                  # 138ec
+li       r8, 480                                     # 138ec
 stw     r24,  0x01c4( r6) # ewa.0x1c4                # 138f0
 dcbtst   r8,  r6                                     # 138f4
 stw     r25,  0x01cc( r6) # ewa.0x1cc                # 138f8
@@ -29692,7 +29759,7 @@ dcbt    r31,  r6                                     # 1394c
 lwz     r21,  0x01ac( r6) # ewa.0x1ac                # 13950
 lwz     r22,  0x01b4( r6) # ewa.0x1b4                # 13954
 lwz     r23,  0x01bc( r6) # ewa.0x1bc                # 13958
-li      r31,  0x1e0                                  # 1395c
+li      r31, 480                                     # 1395c
 lwz     r24,  0x01c4( r6) # ewa.0x1c4                # 13960
 dcbt    r31,  r6                                     # 13964
 lwz     r25,  0x01cc( r6) # ewa.0x1cc                # 13968
@@ -29743,7 +29810,7 @@ dcbtst   r8,  r6                                     # 139d4
 stfd     f9,  0x0248( r6)                            # 139d8
 stfd    f10,  0x0250( r6)                            # 139dc
 stfd    f11,  0x0258( r6)                            # 139e0
-li       r8,  0x280                                  # 139e4
+li       r8, 640                                     # 139e4
 stfd    f12,  0x0260( r6)                            # 139e8
 dcbtst   r8,  r6                                     # 139ec
 stfd    f13,  0x0268( r6)                            # 139f0
@@ -29846,7 +29913,7 @@ lvx      v9,  r9, r10                                # 13b1c
 major_0x13988_0x198:
 vor     v10, v31, v31                                # 13b20
 bne-     cr2, major_0x13988_0x1a8                    # 13b24
-li       r8,  0xa0                                   # 13b28
+li       r8, 160                                     # 13b28
 lvx     v10,  r8, r10                                # 13b2c
 
 major_0x13988_0x1a8:
@@ -29876,7 +29943,7 @@ lvx     v14,  r8, r10                                # 13b6c
 major_0x13988_0x1e8:
 vor     v15, v31, v31                                # 13b70
 bns-     cr3, major_0x13988_0x1f8                    # 13b74
-li       r9,  0xf0                                   # 13b78
+li       r9, 240                                     # 13b78
 lvx     v15,  r9, r10                                # 13b7c
 
 major_0x13988_0x1f8:
@@ -29906,7 +29973,7 @@ lvx     v19,  r9, r10                                # 13bbc
 major_0x13988_0x238:
 vor     v20, v31, v31                                # 13bc0
 bge-     cr5, major_0x13988_0x248                    # 13bc4
-li       r8,  0x140                                  # 13bc8
+li       r8, 320                                     # 13bc8
 lvx     v20,  r8, r10                                # 13bcc
 
 major_0x13988_0x248:
@@ -29936,7 +30003,7 @@ lvx     v24,  r8, r10                                # 13c0c
 major_0x13988_0x288:
 vor     v25, v31, v31                                # 13c10
 ble-     cr6, major_0x13988_0x298                    # 13c14
-li       r9,  0x190                                  # 13c18
+li       r9, 400                                     # 13c18
 lvx     v25,  r9, r10                                # 13c1c
 
 major_0x13988_0x298:
@@ -29966,7 +30033,7 @@ lvx     v29,  r9, r10                                # 13c5c
 major_0x13988_0x2d8:
 vor     v30, v31, v31                                # 13c60
 bne-     cr7, major_0x13988_0x2e8                    # 13c64
-li       r8,  0x1e0                                  # 13c68
+li       r8, 480                                     # 13c68
 lvx     v30,  r8, r10                                # 13c6c
 
 major_0x13988_0x2e8:
@@ -30068,7 +30135,7 @@ stvx     v9,  r4,  r2                                # 13d3c
 
 major_0x13c90_0xb0:
 bne-     cr2, major_0x13c90_0xbc                     # 13d40
-li       r3,  0xa0                                   # 13d44
+li       r3, 160                                     # 13d44
 stvx    v10,  r3,  r2                                # 13d48
 
 major_0x13c90_0xbc:
@@ -30093,7 +30160,7 @@ stvx    v14,  r3,  r2                                # 13d78
 
 major_0x13c90_0xec:
 bns-     cr3, major_0x13c90_0xf8                     # 13d7c
-li       r4,  0xf0                                   # 13d80
+li       r4, 240                                     # 13d80
 stvx    v15,  r4,  r2                                # 13d84
 
 major_0x13c90_0xf8:
@@ -30118,7 +30185,7 @@ stvx    v19,  r4,  r2                                # 13db4
 
 major_0x13c90_0x128:
 bge-     cr5, major_0x13c90_0x134                    # 13db8
-li       r3,  0x140                                  # 13dbc
+li       r3, 320                                     # 13dbc
 stvx    v20,  r3,  r2                                # 13dc0
 
 major_0x13c90_0x134:
@@ -30143,7 +30210,7 @@ stvx    v24,  r3,  r2                                # 13df0
 
 major_0x13c90_0x164:
 ble-     cr6, major_0x13c90_0x170                    # 13df4
-li       r4,  0x190                                  # 13df8
+li       r4, 400                                     # 13df8
 stvx    v25,  r4,  r2                                # 13dfc
 
 major_0x13c90_0x170:
@@ -30168,7 +30235,7 @@ stvx    v29,  r4,  r2                                # 13e2c
 
 major_0x13c90_0x1a0:
 bne-     cr7, major_0x13c90_0x1ac                    # 13e30
-li       r3,  0x1e0                                  # 13e34
+li       r3, 480                                     # 13e34
 stvx    v30,  r3,  r2                                # 13e38
 
 major_0x13c90_0x1ac:
@@ -31083,7 +31150,7 @@ lwz      r5,  0x012c( r6)                            # 147bc
 stw      r8,  0x0018(r19)                            # 147c0
 lwz     r14,  0x0174( r6)                            # 147c4
 lwz     r15,  0x017c( r6)                            # 147c8
-li       r9,  0x1a4                                  # 147cc
+li       r9, 420                                     # 147cc
 lwz     r16,  0x0184( r6)                            # 147d0
 dcbt     r9,  r6                                     # 147d4
 lwz     r17,  0x018c( r6)                            # 147d8
@@ -31232,7 +31299,7 @@ cmpwi   r18,  0x00                                   # 14984
 bge-     cr1, major_0x148ec_0xb0                     # 14988
 lwz     r16,  0x00fc(r30)                            # 1498c
 lwz     r17,  0x00fc(r30)                            # 14990
-srawi   r16, r16,  0x1f                              # 14994
+srawi   r16, r16, 31                                 # 14994
 b       major_0x148ec_0xc8                           # 14998
 
 major_0x148ec_0xb0:
@@ -31303,9 +31370,9 @@ mullw   r20, r20, r18                                # 14a1c
 add     r19, r19, r17                                # 14a20
 
 major_0x149d4_0x50:
-srwi    r20, r20,  0x0a                              # 14a24
+srwi    r20, r20, 10                                 # 14a24
 rlwimi  r20, r19, 22,  0,  9                         # 14a28
-srwi    r19, r19,  0x0a                              # 14a2c
+srwi    r19, r19, 10                                 # 14a2c
 
 major_0x149d4_0x5c:
 lbz     r18,  0x0019( r8)                            # 14a30
@@ -31526,7 +31593,7 @@ mtspr   272/*sprg0*/,  r1                            # 14bd0
 lwz      r1, -0x0004( r1)                            # 14bd4
 lwz      r8,  0x06a4( r1)                            # 14bd8
 lwz      r9,  0x06a0( r1)                            # 14bdc
-srwi     r9,  r9,  0x10                              # 14be0
+srwi     r9,  r9, 16                                 # 14be0
 or       r9,  r8,  r9                                # 14be4
 sync                                                 # 14be8
 mtspr   25/*sdr1*/,  r9                              # 14bec
@@ -31907,7 +31974,7 @@ setup
 
 major_0x15144:  /* < outside referer */
 mflr    r23                                          # 15144
-li       r8,  0x208                                  # 15148
+li       r8, 520                                     # 15148
 bl      boring                                       # 1514c
 mr.     r22,  r8                                     # 15150
 stw      r8, -0x0a98( r1)                            # 15154
@@ -31953,7 +32020,7 @@ major_0x0ce48
 major_0x0d204
 major_0x0d70c
 major_0x0da20
-major_0x0e330
+mktask
 NKCreateAddressSpaceSub
 createarea
 
@@ -31970,7 +32037,7 @@ rlwinm  r20, r19, 25, 23, 29                         # 151c0
 addi    r20, r20,  0x08                              # 151c4
 clrlwi. r19, r19,  0x17                              # 151c8
 lwzx    r18, r18, r20                                # 151cc
-slwi    r22, r19,  0x03                              # 151d0
+slwi    r22, r19,  3                                 # 151d0
 addi    r20, r18,  0x08                              # 151d4
 cmpwi   r18,  0x00                                   # 151d8
 add     r22, r22, r20                                # 151dc
@@ -32082,7 +32149,7 @@ major_0x0d158
 major_0x0d278
 major_0x0d798
 major_0x0da8c
-major_0x0e330
+mktask
 major_0x0e76c
 NKCreateAddressSpaceSub
 major_0x0f9f8
@@ -32100,7 +32167,7 @@ lwzx    r18, r18, r20                                # 15310
 cmplwi   cr1, r19,  0x1fa                            # 15314
 cmpwi   r18,  0x00                                   # 15318
 addi    r20, r18,  0x08                              # 1531c
-slwi    r22, r19,  0x03                              # 15320
+slwi    r22, r19,  3                                 # 15320
 add     r22, r22, r20                                # 15324
 clrlwi  r20,  r8,  0x10                              # 15328
 li       r8,  0x00                                   # 1532c
@@ -32259,7 +32326,7 @@ lwzx    r18, r18, r20                                # 15390
 cmplwi   cr1, r19,  0x1fa                            # 15394
 cmpwi   r18,  0x00                                   # 15398
 addi    r20, r18,  0x08                              # 1539c
-slwi    r22, r19,  0x03                              # 153a0
+slwi    r22, r19,  3                                 # 153a0
 add     r22, r22, r20                                # 153a4
 clrlwi  r20,  r8,  0x10                              # 153a8
 li       r8,  0x00                                   # 153ac
@@ -32304,7 +32371,7 @@ cmplwi   cr1, r19,  0x1fa                            # 153f4
 cmpwi   r18,  0x00                                   # 153f8
 cmpwi    cr2,  r8,  0x00                             # 153fc
 addi    r20, r18,  0x08                              # 15400
-slwi    r22, r19,  0x03                              # 15404
+slwi    r22, r19,  3                                 # 15404
 li       r8,  0x00                                   # 15408
 bgelr-   cr1                                         # 1540c
 beqlr-                                               # 15410
@@ -32407,7 +32474,7 @@ int_handler_tbl:
 1: mflr  r7                                          # 154c0
 mtlr    r12                                          # 154c4
 lbz     r12,  0x0098( r3) # ConfigInfo.u8_int_handler_kind
-slwi    r12, r12,  0x01                              # 154cc
+slwi    r12, r12,  1                                 # 154cc
 lhzx    r12,  r7, r12                                # 154d0
 add      r7,  r7, r12                                # 154d4
 blr                                                  # 154d8
@@ -33585,7 +33652,7 @@ _int_handler_kind_06_0x150:
 lhz     r27,  0x0f88(r20)                            # 16050
 ori     r20, r23,  0x10                              # 16054
 lis     r26,       0x02                              # 16058
-ori     r26, r26,  0xa0                              # 1605c
+ori     r26, r26, 160                                # 1605c
 mtmsr   r20                                          # 16060
 isync                                                # 16064
 lwbrx   r26, r22, r26                                # 16068
@@ -33816,7 +33883,7 @@ b       _int_handler_kind_08_0x1f8                   # 162ec
 _int_handler_kind_08_0x170:
 ori     r27, r23,  0x10                              # 162f0
 lis     r26,       0x02                              # 162f4
-ori     r26, r26,  0xa0                              # 162f8
+ori     r26, r26, 160                                # 162f8
 lis     r28,       0x01                              # 162fc
 ori     r28, r28,  0x00                              # 16300
 mtmsr   r27                                          # 16304
@@ -33935,7 +34002,7 @@ major_0x12248
 poolextend
 say_nanodebugger_activated
 say_starting_timeslicing
-init_ready_queues
+init_rdyqs
 major_0x14bcc
 dbgr
 print_xpt_info
@@ -33994,7 +34061,7 @@ bne-    print_0xbc                                   # 1646c
 
 print_0x90:
 lbzu    r29,  0x0001( r8)                            # 16470
-cmpwi   r29,  0x6e                                   # 16474
+cmpwi   r29, 110                                     # 16474
 beq-    print_0xe8                                   # 16478
 cmpwi   r29,  0x72                                   # 1647c
 beq-    print_0xe8                                   # 16480
@@ -34055,7 +34122,7 @@ beq-     cr7, print_0x1cc                            # 16520
 mtmsr   r31                                          # 16524
 isync                                                # 16528
 lwz     r29, -0x0438( r1)                            # 1652c
-srwi    r29, r29,  0x08                              # 16530
+srwi    r29, r29,  8                                 # 16530
 mfspr   r30, 22/*dec*/                               # 16534
 subf    r29, r29, r30                                # 16538
 ori     r30, r31,  0x10                              # 1653c
@@ -34709,17 +34776,17 @@ lwz      r4,  0x0124( r6)                            # 16c50
 lwz      r5,  0x012c( r6)                            # 16c54
 stw     r11,  0x00a4( r6)                            # 16c58
 mr      r27,  r5                                     # 16c5c
-addi    r29,  r1,  0x320                             # 16c60
+addi    r29,  r1, 800                                # 16c60
 bl      major_0x054b8                                # 16c64
 beq+    major_0x16b80_0x8                            # 16c68
 rlwimi  r27, r31,  0,  0, 19                         # 16c6c
 mr      r17, r27                                     # 16c70
 addi    r15, r17,  0x34                              # 16c74
-srwi     r3,  r3,  0x0c                              # 16c78
+srwi     r3,  r3, 12                                 # 16c78
 
 major_0x16bb4_0xc8:
 mr      r27,  r5                                     # 16c7c
-addi    r29,  r1,  0x320                             # 16c80
+addi    r29,  r1, 800                                # 16c80
 bl      major_0x054b8                                # 16c84
 beq+    major_0x16b80_0x8                            # 16c88
 rlwimi  r27, r31,  0,  0, 19                         # 16c8c
@@ -34772,7 +34839,7 @@ lis      r9,       0x00                              # 16d30
 ori      r9,  r9,  0xa000                            # 16d34
 subf     r8,  r9,  r1                                # 16d38
 stw      r8,  0x001c(r17)                            # 16d3c
-addi     r9,  r1,  0x78                              # 16d40
+addi     r9,  r1, 120                                # 16d40
 lis     r31,       0x00                              # 16d44
 li      r14,  0x00                                   # 16d48
 lwz     r29,  0x0034(r17)                            # 16d4c
@@ -34789,7 +34856,7 @@ lhz     r16,  0x0002(r30)                            # 16d64
 cmplwi  r19,  0xc00                                  # 16d68
 bne-    major_0x16bb4_0x1dc                          # 16d6c
 addi    r16, r16,  0x01                              # 16d70
-slwi    r16, r16,  0x02                              # 16d74
+slwi    r16, r16,  2                                 # 16d74
 stw     r16,  0x0000(r29)                            # 16d78
 rlwinm  r18, r18, 22,  0, 29                         # 16d7c
 stw     r18,  0x0004(r29)                            # 16d80
@@ -35010,7 +35077,7 @@ cntlzw  r17, r16                                     # 1707c
 li      r16, -0x01                                   # 17080
 srw     r16, r16, r17                                # 17084
 addi     r8, r16,  0x01                              # 17088
-addi     r9,  r1,  0x78                              # 1708c
+addi     r9,  r1, 120                                # 1708c
 lis     r31,       0x00                              # 17090
 li      r19,  0x00                                   # 17094
 li      r14,  0x00                                   # 17098
@@ -35045,7 +35112,7 @@ addi    r17, r17,  0x08                              # 170e8
 b       major_0x16bb4_0x4ec                          # 170ec
 
 major_0x16bb4_0x53c:
-slwi    r19, r19,  0x02                              # 170f0
+slwi    r19, r19,  2                                 # 170f0
 add      r8,  r8, r19                                # 170f4
 cmpwi   r14,  0x00                                   # 170f8
 beq+    major_0x16b80_0x8                            # 170fc
@@ -35092,8 +35159,8 @@ lis      r9,       0x00                              # 1717c
 ori      r9,  r9,  0x3c                              # 17180
 add      r8,  r8,  r9                                # 17184
 add     r24, r24,  r9                                # 17188
-srwi     r9,  r8,  0x0c                              # 1718c
-slwi     r9,  r9,  0x02                              # 17190
+srwi     r9,  r8, 12                                 # 1718c
+slwi     r9,  r9,  2                                 # 17190
 addi     r9,  r9,  0x04                              # 17194
 add      r8,  r8,  r9                                # 17198
 add     r24, r24,  r9                                # 1719c
@@ -35101,8 +35168,8 @@ mr       r9, r24                                     # 171a0
 blr                                                  # 171a4
 
 major_0x16bb4_0x5f4:
-srwi    r23, r28,  0x0c                              # 171a8
-slwi    r23, r23,  0x02                              # 171ac
+srwi    r23, r28, 12                                 # 171a8
+slwi    r23, r23,  2                                 # 171ac
 add     r23, r23, r17                                # 171b0
 lwz     r23,  0x0038(r23)                            # 171b4
 rlwimi  r23, r28,  0, 20, 31                         # 171b8
@@ -35821,7 +35888,7 @@ bl      cmd_lookup                                   # 17af8
 bne-    dbgr_0x884                                   # 17afc
 li      r29,  0x00                                   # 17b00
 li      r30,  0x00                                   # 17b04
-srwi    r31, r17,  0x02                              # 17b08
+srwi    r31, r17,  2                                 # 17b08
 
 dbgr_0x82c:
 mr       r8, r30                                     # 17b0c
@@ -35875,7 +35942,7 @@ mr       r8, r30                                     # 17b90
 bl      print_hexword_spc                            # 17b94
 bl      dbgr_load_id_kind_strings                    # 17b98
 mflr    r17                                          # 17b9c
-slwi    r18,  r9,  0x04                              # 17ba0
+slwi    r18,  r9,  4                                 # 17ba0
 add      r8, r17, r18                                # 17ba4
 bl      print_string                                 # 17ba8
 cmpwi    r9,  0x00                                   # 17bac
@@ -35897,7 +35964,7 @@ bl      print_string                                 # 17bdc
 mr      r16, r31                                     # 17be0
 bl      dbgr_load_more_jumps                         # 17be4
 mflr    r17                                          # 17be8
-slwi    r18,  r9,  0x02                              # 17bec
+slwi    r18,  r9,  2                                 # 17bec
 lwzx    r17, r17, r18                                # 17bf0
 bl      print_memory                                 # 17bf4
 b       dbgr_prompt                                  # 17bf8
@@ -36600,7 +36667,7 @@ dbgr
 
 print_memory:  /* < outside referer */
 mflr    r18                                          # 18544
-srwi    r17, r17,  0x04                              # 18548
+srwi    r17, r17,  4                                 # 18548
 
 print_memory_0x8:
 mr       r8, r16                                     # 1854c
@@ -36681,7 +36748,7 @@ dbgr
 
 print_memory_logical:  /* < outside referer */
 mflr    r18                                          # 1860c
-srwi    r17, r17,  0x04                              # 18610
+srwi    r17, r17,  4                                 # 18610
 
 print_memory_logical_0x8:
 mr       r8, r16                                     # 18614
@@ -36896,7 +36963,7 @@ cmplwi  r17,  0x30                                   # 187bc
 cmplwi   cr1, r17,  0x39                             # 187c0
 blt-    major_0x187b0_0x28                           # 187c4
 bgt-     cr1, major_0x187b0_0x28                     # 187c8
-slwi    r16, r16,  0x04                              # 187cc
+slwi    r16, r16,  4                                 # 187cc
 rlwimi  r16, r17,  0, 28, 31                         # 187d0
 b       major_0x187b0_0x8                            # 187d4
 
@@ -36906,7 +36973,7 @@ cmplwi   cr1, r17,  0x66                             # 187dc
 blt-    major_0x187b0_0x48                           # 187e0
 bgt-     cr1, major_0x187b0_0x48                     # 187e4
 addi    r17, r17, -0x57                              # 187e8
-slwi    r16, r16,  0x04                              # 187ec
+slwi    r16, r16,  4                                 # 187ec
 rlwimi  r16, r17,  0, 28, 31                         # 187f0
 b       major_0x187b0_0x8                            # 187f4
 
@@ -36916,7 +36983,7 @@ cmplwi   cr1, r17,  0x46                             # 187fc
 blt-    major_0x187b0_0x68                           # 18800
 bgt-     cr1, major_0x187b0_0x68                     # 18804
 addi    r17, r17, -0x37                              # 18808
-slwi    r16, r16,  0x04                              # 1880c
+slwi    r16, r16,  4                                 # 1880c
 rlwimi  r16, r17,  0, 28, 31                         # 18810
 b       major_0x187b0_0x8                            # 18814
 
@@ -37108,7 +37175,7 @@ stw     r30, -0x0400( r1) # kdp.-0x400               # 18a38
 li      r29,  0x16                                   # 18a3c
 sth     r29, -0x0360( r1) # kdp.uint16_log_window_y  # 18a40
 li      r29,  0x18                                   # 18a44
-sth     r29, -0x035e( r1) # kdp.-0x35e               # 18a48
+sth     r29, -0x035e( r1) # kdp.uint16_log_window_h  # 18a48
 li      r29,  0x1f6                                  # 18a4c
 sth     r29, -0x035c( r1) # kdp.uint16_log_window_height
 li      r29,  0x24c                                  # 18a54
@@ -37233,7 +37300,7 @@ addi    r17, r17, -0x01                              # 18b80
 cmpw    r10, r17                                     # 18b84
 blt+    major_0x18a98_0x74                           # 18b88
 lwz     r17, -0x0438( r1)                            # 18b8c
-slwi    r25, r17,  0x02                              # 18b90
+slwi    r25, r17,  2                                 # 18b90
 add     r25, r25, r17                                # 18b94
 mfspr   r17, 22/*dec*/                               # 18b98
 subf    r17, r25, r17                                # 18b9c
@@ -37373,7 +37440,7 @@ lwz      r3,  0x0000(r27)                            # 18cd0
 lhz      r5,  0x0004(r27)                            # 18cd4
 andi.    r5,  r5,  0x7fff                            # 18cd8
 lhz      r6,  0x0020(r27)                            # 18cdc
-srwi     r6,  r6,  0x03                              # 18ce0
+srwi     r6,  r6,  3                                 # 18ce0
 cmplwi   r6,  0x08                                   # 18ce4
 bgt-    major_0x18c18_0xe0                           # 18ce8
 stw      r3, -0x08f8( r1)                            # 18cec
@@ -37573,7 +37640,7 @@ mtmsr   r22                                          # 18ec8
 isync                                                # 18ecc
 sth     r28,  0x0000( r7)                            # 18ed0
 sth     r27,  0x0004( r7)                            # 18ed4
-srwi    r27, r27,  0x10                              # 18ed8
+srwi    r27, r27, 16                                 # 18ed8
 sth     r27,  0x0002( r7)                            # 18edc
 rlwinm  r22, r22,  0, 28, 26                         # 18ee0
 mtmsr   r22                                          # 18ee4
@@ -38499,8 +38566,8 @@ major_0x18d5c
 
 load_log_colours:  /* < outside referer */
 blrl                                                 # 19b20
-.long   0xfffffeee                                   # 19b24
-.long   0x44444444                                   # 19b28
+.long   0x4444ff
+.long   0x000000
 
 
 
