@@ -1900,20 +1900,22 @@ bl      1f                                           # 014a0
 .align  2                                            # 014ad
 1: mflr  r8                                          # 014b0
 bl      print_string                                 # 014b4
+
+#   Copy 64b from 0xfc0(kdp) to 0xfc0(irp)...
 lis     r22,       0x00                              # 014b8
 ori     r22, r22,  0x40                              # 014bc
 lwz      r9, -0x0020( r1) # kdp.irp                  # 014c0
 addi     r8,  r1,  0xfc0 # kdp.0xfc0                 # 014c4
 addi     r9,  r9,  0xfc0                             # 014c8
 
-copyloop:
+setup_0x98:
 addic.  r22, r22, -0x04                              # 014cc
 lwzx     r0, r22,  r8                                # 014d0
 stwx     r0, r22,  r9                                # 014d4
-bgt+    copyloop                                     # 014d8
-lwz     r26,  0x0630( r1) # kdp.ConfigInfo           # 014dc
+bgt+    setup_0x98                                   # 014d8
 
-#   r25 = phys kernel code base (0x00f10000 on NW)
+#   ...done
+lwz     r26,  0x0630( r1) # kdp.ConfigInfo           # 014dc
 lwz     r25,  0x064c( r1) # kdp.phys_kern_base       # 014e0
 lwz     r18,  0x0684( r1) # kdp.0x684                # 014e4
 lis     r23,      dbgr@h                             # 014e8
@@ -2157,7 +2159,7 @@ stw     r23,  0x003c( r8) # kdp.0x62c                # 01820
 #   super boring stuff over. now cpu-specific stuff!
 #   (I have only listed CPUs that I think Apple used)
 #   PVR = version << 16 | revision
-#   
+
 #   Pre-G3:
 #   0001 = 601
 #   0003 = 603
@@ -2165,18 +2167,18 @@ stw     r23,  0x003c( r8) # kdp.0x62c                # 01820
 #   0007 = 606ev/606r
 #   0004 = 604
 #   0004 = 604e
-#   
+
 #   G3:
 #   0008 = 750/750CX/750CXe/755
 #   0007 = 750FX
-#   
+
 #   G4:
 #   000c = 7400
 #   800c = 7410
 #   8000 = 7450
 #   8001 = 7445/7455
 #   8002 = 7447/7457 (upgrades only!)
-#   
+
 #   G5:
 #   0039 = 970
 #   003c = 970FX
@@ -2240,48 +2242,59 @@ stw     r23,  0x0348( r1) # kdp.0x348                # 018bc
 stw     r23,  0x0350( r1) # kdp.0x350                # 018c0
 stw     r23,  0x0358( r1) # kdp.0x358                # 018c4
 
-#   Pretty sure these are lock structs.
+#   Initialise the seven kernel locks with zero in the count field...
 li      r23,  0x00                                   # 018c8
-stw     r23, -0x0b90( r1) # kdp.-0xb90               # 018cc
-stw     r23, -0x0b70( r1) # kdp.interrupt_lock       # 018d0
-stw     r23, -0x0b50( r1) # kdp.popular_lock         # 018d4
-stw     r23, -0x0b30( r1) # kdp.-0xb30               # 018d8
+stw     r23, -0x0b90( r1) # kdp.htab_lock            # 018cc
+stw     r23, -0x0b70( r1) # kdp.pih_lock             # 018d0
+stw     r23, -0x0b50( r1) # kdp.sch_lock             # 018d4
+stw     r23, -0x0b30( r1) # kdp.thud_lock            # 018d8
 stw     r23, -0x0b10( r1) # kdp.rtas_lock            # 018dc
-stw     r23, -0x0af0( r1) # kdp.-0xaf0               # 018e0
-stw     r23, -0x0ad0( r1) # kdp.-0xad0               # 018e4
+stw     r23, -0x0af0( r1) # kdp.dbug_lock            # 018e0
+stw     r23, -0x0ad0( r1) # kdp.pool_lock            # 018e4
 
-#   aaaand more damned constants
-lis     r23,       0x6874                            # 018e8
-ori     r23, r23,  0x6162                            # 018ec
+#   ...and a name in the fourcc field.
+lis     r23,      256 * 'h'+'t'                      # 018e8
+ori     r23, r23, 256 * 'a'+'b'                      # 018ec
 stw     r23, -0x0b8c( r1) # kdp.-0xb8c               # 018f0
-lis     r23,       0x7069                            # 018f4
-ori     r23, r23,  0x6820                            # 018f8
+
+lis     r23,      256 * 'p'+'i'                      # 018f4
+ori     r23, r23, 256 * 'h'+' '                      # 018f8
 stw     r23, -0x0b6c( r1) # kdp.-0xb6c               # 018fc
-lis     r23,       0x7363                            # 01900
-ori     r23, r23,  0x6820                            # 01904
+
+lis     r23,      256 * 's'+'c'                      # 01900
+ori     r23, r23, 256 * 'h'+' '                      # 01904
 stw     r23, -0x0b4c( r1) # kdp.-0xb4c               # 01908
-lis     r23,       0x7468                            # 0190c
-ori     r23, r23,  0x7564                            # 01910
+
+lis     r23,      256 * 't'+'h'                      # 0190c
+ori     r23, r23, 256 * 'u'+'d'                      # 01910
 stw     r23, -0x0b2c( r1) # kdp.-0xb2c               # 01914
-lis     r23,       0x7274                            # 01918
-ori     r23, r23,  0x6173                            # 0191c
+
+lis     r23,      256 * 'r'+'t'                      # 01918
+ori     r23, r23, 256 * 'a'+'s'                      # 0191c
 stw     r23, -0x0b0c( r1) # kdp.-0xb0c               # 01920
-lis     r23,       0x6462                            # 01924
-ori     r23, r23,  0x7567                            # 01928
+
+lis     r23,      256 * 'd'+'b'                      # 01924
+ori     r23, r23, 256 * 'u'+'g'                      # 01928
 stw     r23, -0x0aec( r1) # kdp.-0xaec               # 0192c
-lis     r23,       0x706f                            # 01930
-ori     r23, r23,  0x6f6c                            # 01934
+
+lis     r23,      256 * 'p'+'o'                      # 01930
+ori     r23, r23, 256 * 'o'+'l'                      # 01934
 stw     r23, -0x0acc( r1) # kdp.-0xacc               # 01938
+
 lis     r17,       0x7fff                            # 0193c
 ori     r17, r17,  0xdead                            # 01940
 stw     r17, -0x08e0( r1) # kdp.-0x8e0               # 01944
 stw     r17, -0x08dc( r1) # kdp.-0x8dc               # 01948
 stw     r17, -0x08d8( r1) # kdp.-0x8d8               # 0194c
 stw     r17, -0x08d4( r1) # kdp.-0x8d4               # 01950
+
+#   Now what?
 bl      store_some_junk                              # 01954
 bl      major_0x15144                                # 01958
 lwz      r7, -0x0010( r1) # kdp.-0x10                # 0195c
 li       r8,  0x20                                   # 01960
+
+# r1 = kdp
 bl      boring                                       # 01964
 mr.     r31,  r8                                     # 01968
 beq-    _dbgr_0x02940                                # 0196c
@@ -2290,18 +2303,20 @@ bl      major_0x151b0                                # 01974
 stw     r31, -0x041c( r1) # kdp.system_address_space # 01978
 stw      r8,  0x0000(r31)                            # 0197c
 stw      r8,  0x0ec0( r1) # kdp.0xec0                # 01980
-lis      r8,       0x5052                            # 01984
-ori      r8,  r8,  0x4f43                            # 01988
+lis      r8,      256 * 'P'+'R'                      # 01984
+ori      r8,  r8, 256 * 'O'+'C'                      # 01988
 stw      r8,  0x0004(r31)                            # 0198c
 li       r8,  0x02                                   # 01990
 stw      r8,  0x0010(r31)                            # 01994
 addi    r30,  r1, -0xa94 # kdp.-0xa94                # 01998
-lis     r17,       0x4752                            # 0199c
+lis     r17,      256 * 'G'+'R'                      # 0199c
 stw     r30,  0x0008(r30)                            # 019a0
-ori     r17, r17,  0x5053                            # 019a4
+ori     r17, r17, 256 * 'P'+'S'                      # 019a4
 stw     r30,  0x000c(r30)                            # 019a8
 stw     r17,  0x0004(r30)                            # 019ac
 li       r8,  0x58                                   # 019b0
+
+# r1 = kdp
 bl      boring                                       # 019b4
 mr.     r31,  r8                                     # 019b8
 beq-    _dbgr_0x02940                                # 019bc
@@ -2359,7 +2374,7 @@ stw     r17,  0x000c(r29)                            # 01aa0
 lis      r8,       0x00                              # 01aa4
 ori      r8,  r8,  0x0f                              # 01aa8
 stw      r8,  0x0018(r31)                            # 01aac
-addi     r8,  r1, -0xb90 # kdp.-0xb90                # 01ab0
+addi     r8,  r1, -0xb90 # kdp.htab_lock             # 01ab0
 stw      r8,  0x0308(r30)                            # 01ab4
 stw      r1,  0x031c(r30)                            # 01ab8
 li       r8,  0x00                                   # 01abc
@@ -2530,8 +2545,8 @@ li       r8, -0x01                                   # 01d2c
 sth      r8, -0x043c( r1) # kdp.-0x43c               # 01d30
 stw     r31, -0x08f0( r1) # kdp.-0x8f0               # 01d34
 stw     r31, -0x0008( r1) # kdp.-0x8                 # 01d38
-lis      r8,      ('b'<<8) + ('l')                   # 01d3c
-ori      r8,  r8, ('u'<<8) + ('e')                   # 01d40
+lis      r8,      256 * 'b'+'l'                      # 01d3c
+ori      r8,  r8, 256 * 'u'+'e'                      # 01d40
 stw      r8,  0x0074(r31)                            # 01d44
 li       r8,  0x02                                   # 01d48
 stb      r8,  0x0018(r31)                            # 01d4c
@@ -2616,8 +2631,8 @@ bl      mktask                                       # 01eac
 mr       r7, r31                                     # 01eb0
 mr.     r31,  r8                                     # 01eb4
 beq-    _dbgr_0x02940                                # 01eb8
-lis      r8,      ('i'<<8) + ('d')                   # 01ebc
-ori      r8,  r8, ('l'<<8) + ('e')                   # 01ec0
+lis      r8,      256 * 'i'+'d'                      # 01ebc
+ori      r8,  r8, 256 * 'l'+'e'                      # 01ec0
 stw      r8,  0x0074(r31)                            # 01ec4
 lis      r8,       0x0a                              # 01ec8
 ori      r8,  r8,  0x40                              # 01ecc
@@ -3881,7 +3896,7 @@ reset_trap
 major_0x04700
 major_0x04880
 major_0x08794
-bootstrap_cpu
+major_0x09dfc
 major_0x0a600
 rtas_call
 major_0x0a8c0
@@ -6123,7 +6138,7 @@ bl      save_registers_from_r14                      # 04520
 
 mfspr    r9, 287/*pvr*/                              # 04524
 rlwinm.  r9,  r9,  0,  0, 14                         # 04528
-xoris    r8,  r3, ('G'<<8) + ('a')                   # 0452c
+xoris    r8,  r3, 256 * 'G'+'a'                      # 0452c
 beq-    reset_trap_cpu_not_601                       # 04530
 mftb     r9,  0x10c                                  # 04534
 b       reset_trap_endif                             # 04538
@@ -6133,7 +6148,7 @@ mfspr    r9, 5/*rtcl*/                               # 0453c
 
 reset_trap_endif:
 andis.   r9,  r9,  0xffff                            # 04540
-cmplwi   r8, ('r'<<8) + ('y')                        # 04544
+cmplwi   r8, 256 * 'r'+'y'                           # 04544
 bne-    non_skeleton_reset_trap                      # 04548
 xoris    r8,  r4,  0x505                             # 0454c
 cmplwi   r8,  0x1956                                 # 04550
@@ -12957,8 +12972,8 @@ li      r22,  0xc0                                   # 09cf4
 # r23 = fillword
 bl      wordfill                                     # 09cf8
 mtlr     r9                                          # 09cfc
-lis     r23,      bootstrap_cpu_0xdc@h               # 09d00
-ori     r23, r23, bootstrap_cpu_0xdc@l               # 09d04
+lis     r23,      major_0x09dfc@h                    # 09d00
+ori     r23, r23, major_0x09dfc@l                    # 09d04
 add     r23, r23, r25                                # 09d08
 stw     r23,  0x0004( r8)                            # 09d0c
 stw     r23,  0x0014( r8)                            # 09d10
@@ -13002,12 +13017,12 @@ lwz      r9, -0x0440( r1)                            # 09d34
 
 bootstrap_cpu_0x18:
 and.     r8,  r4,  r9                                # 09d38
-bgt-     cr7, bootstrap_cpu_0x13c                    # 09d3c
-bne-    bootstrap_cpu_0x134                          # 09d40
+bgt-     cr7, major_0x09dfc_0x60                     # 09d3c
+bne-    major_0x09dfc_0x58                           # 09d40
 cmplwi   cr7,  r3,  0x0b                             # 09d44
 beq-     cr7, major_0x0a600_0x1c                     # 09d48
 cmplwi   cr7,  r3,  0x08                             # 09d4c
-beq-     cr7, bootstrap_cpu_0x144                    # 09d50
+beq-     cr7, major_0x09dfc_0x68                     # 09d50
 cmplwi   cr7,  r3,  0x09                             # 09d54
 beq-     cr7, major_0x0a600_0x10                     # 09d58
 stw     r26,  0x01d4( r6)                            # 09d5c
@@ -13026,7 +13041,7 @@ slwi     r3,  r3,  1                                 # 09d8c
 addi     r3,  r3,  0x1a                              # 09d90
 rlwnm    r3,  r8,  r3,  0x1e,  0x1f                  # 09d94
 cmpwi    r3,  0x00                                   # 09d98
-beq-    bootstrap_cpu_0x12c                          # 09d9c
+beq-    major_0x09dfc_0x50                           # 09d9c
 lbz      r9,  0x06b9( r1)                            # 09da0
 cmpwi    r9,  0x00                                   # 09da4
 beq-    bootstrap_cpu_0xb0                           # 09da8
@@ -13059,13 +13074,27 @@ isync                                                # 09df4
 bootstrap_cpu_0xd8:
 b       bootstrap_cpu_0xd8                           # 09df8
 
-bootstrap_cpu_0xdc:  /* < outside referer */
+
+
+/***********************************************************
+
+                       major_0x09dfc                        
+
+************************************************************
+
+Xrefs:
+"lisori_caller"
+bootstrap_cpu
+
+***********************************************************/
+
+major_0x09dfc:  /* < outside referer */
 lbz      r8,  0x06b9( r1)                            # 09dfc
 cmpwi    r8,  0x00                                   # 09e00
-beq-    bootstrap_cpu_0xec                           # 09e04
+beq-    major_0x09dfc_0x10                           # 09e04
 mtspr   1008/*hid0*/, r27                            # 09e08
 
-bootstrap_cpu_0xec:
+major_0x09dfc_0x10:
 mfspr    r1, 274/*sprg2*/                            # 09e0c
 mtlr     r1                                          # 09e10
 mfspr    r1, 273/*sprg1*/                            # 09e14
@@ -13075,7 +13104,7 @@ mtspr   22/*dec*/,  r9                               # 09e20
 mtspr   22/*dec*/,  r8                               # 09e24
 li       r3,  0x00                                   # 09e28
 
-bootstrap_cpu_0x10c:
+major_0x09dfc_0x30:
 mtspr   275/*sprg3*/, r31                            # 09e2c
 lwz     r26,  0x01d4( r6)                            # 09e30
 lwz     r27,  0x01dc( r6)                            # 09e34
@@ -13085,19 +13114,19 @@ lwz     r30,  0x01f4( r6)                            # 09e40
 lwz     r31,  0x01fc( r6)                            # 09e44
 b       skeleton_key                                 # 09e48
 
-bootstrap_cpu_0x12c:
+major_0x09dfc_0x50:  /* < outside referer */
 li       r3, -0x7267                                 # 09e4c
-b       bootstrap_cpu_0x10c                          # 09e50
+b       major_0x09dfc_0x30                           # 09e50
 
-bootstrap_cpu_0x134:
+major_0x09dfc_0x58:  /* < outside referer */
 li       r3,  0x00                                   # 09e54
 b       skeleton_key                                 # 09e58
 
-bootstrap_cpu_0x13c:
+major_0x09dfc_0x60:  /* < outside referer */
 li       r3, -0x01                                   # 09e5c
 b       skeleton_key                                 # 09e60
 
-bootstrap_cpu_0x144:
+major_0x09dfc_0x68:  /* < outside referer */
 mfspr    r9, 272/*sprg0*/                            # 09e64
 lwz      r8, -0x0338( r9)                            # 09e68
 lwz      r9,  0x0024( r8)                            # 09e6c
@@ -13119,7 +13148,7 @@ sync                                                 # 09ea8
 isync                                                # 09eac
 lwz     r26,  0x0f68( r1)                            # 09eb0
 andi.   r26, r26,  0x01                              # 09eb4
-beq-    bootstrap_cpu_0x1b8                          # 09eb8
+beq-    major_0x09dfc_0xdc                           # 09eb8
 mfspr    r9, 1017/*l2cr*/                            # 09ebc
 clrlwi   r9,  r9,  0x01                              # 09ec0
 mtspr   1017/*l2cr*/,  r9                            # 09ec4
@@ -13128,7 +13157,7 @@ isync                                                # 09ecc
 addi     r8,  r1, -0x4d0                             # 09ed0
 stw      r9,  0x0050( r8)                            # 09ed4
 
-bootstrap_cpu_0x1b8:
+major_0x09dfc_0xdc:
 stw      r7,  0x0000( r6)                            # 09ed8
 stw      r2,  0x0114( r6)                            # 09edc
 stw      r3,  0x011c( r6)                            # 09ee0
@@ -13148,7 +13177,7 @@ stw     r24,  0x01c4( r6)                            # 09f14
 stw     r25,  0x01cc( r6)                            # 09f18
 stw     r13,  0x00dc( r6)                            # 09f1c
 andi.    r8, r11,  0x2000                            # 09f20
-beq-    bootstrap_cpu_0x2a0                          # 09f24
+beq-    major_0x09dfc_0x1c4                          # 09f24
 mfmsr    r8                                          # 09f28
 ori      r8,  r8,  0x2000                            # 09f2c
 mtmsr    r8                                          # 09f30
@@ -13188,7 +13217,7 @@ stfd    f30,  0x02f0( r6)                            # 09fb4
 stfd    f31,  0x02f8( r6)                            # 09fb8
 stfd     f0,  0x00e0( r6)                            # 09fbc
 
-bootstrap_cpu_0x2a0:
+major_0x09dfc_0x1c4:
 mfxer    r9                                          # 09fc0
 addi    r16,  r1, -0x4d0                             # 09fc4
 stw      r9,  0x00d4( r6)                            # 09fc8
@@ -13200,7 +13229,7 @@ stw     r11,  0x0058(r16)                            # 09fdc
 mfspr    r9, 1008/*hid0*/                            # 09fe0
 stw      r9,  0x0064(r16)                            # 09fe4
 
-bootstrap_cpu_0x2c8:
+major_0x09dfc_0x1ec:
 mftbu    r9                                          # 09fe8
 stw      r9,  0x005c(r16)                            # 09fec
 mftb     r9,  0x10c                                  # 09ff0
@@ -13208,7 +13237,7 @@ stw      r9,  0x0060(r16)                            # 09ff4
 mftbu    r8                                          # 09ff8
 lwz      r9,  0x005c(r16)                            # 09ffc
 cmpw     r8,  r9                                     # 0a000
-bne+    bootstrap_cpu_0x2c8                          # 0a004
+bne+    major_0x09dfc_0x1ec                          # 0a004
 mfmsr    r9                                          # 0a008
 stw      r9,  0x006c(r16)                            # 0a00c
 mfspr    r9, 25/*sdr1*/                              # 0a010
@@ -13254,19 +13283,19 @@ stw      r9,  0x0048(r16)                            # 0a0ac
 mfspr    r9, 275/*sprg3*/                            # 0a0b0
 stw      r9,  0x004c(r16)                            # 0a0b4
 stw      r6,  0x007c(r16)                            # 0a0b8
-bl      bootstrap_cpu_0x6a4                          # 0a0bc
+bl      major_0x09dfc_0x5c8                          # 0a0bc
 lwz      r1,  0x0004( r1)                            # 0a0c0
 addi    r16,  r1, -0x4d0                             # 0a0c4
 lis      r8,       0x100                             # 0a0c8
 ori      r8,  r8,  0x00                              # 0a0cc
 lis      r9,       0x00                              # 0a0d0
 
-bootstrap_cpu_0x3b4:
+major_0x09dfc_0x2d8:
 addis    r9,  r9, -0x1000                            # 0a0d4
 addis    r8,  r8, -0x10                              # 0a0d8
 mr.      r9,  r9                                     # 0a0dc
 mtsrin   r8,  r9                                     # 0a0e0
-bne+    bootstrap_cpu_0x3b4                          # 0a0e4
+bne+    major_0x09dfc_0x2d8                          # 0a0e4
 isync                                                # 0a0e8
 mfspr    r9, 1008/*hid0*/                            # 0a0ec
 li       r8,  0x800                                  # 0a0f0
@@ -13283,10 +13312,10 @@ mtspr   1008/*hid0*/,  r9                            # 0a118
 isync                                                # 0a11c
 lwz     r26,  0x0f68( r1)                            # 0a120
 andi.   r26, r26,  0x01                              # 0a124
-beq-    bootstrap_cpu_0x494                          # 0a128
+beq-    major_0x09dfc_0x3b8                          # 0a128
 lwz      r8,  0x0f54( r1)                            # 0a12c
 mr.      r8,  r8                                     # 0a130
-beq-    bootstrap_cpu_0x494                          # 0a134
+beq-    major_0x09dfc_0x3b8                          # 0a134
 mfspr    r9, 1008/*hid0*/                            # 0a138
 rlwinm   r9,  r9,  0, 12, 10                         # 0a13c
 mtspr   1008/*hid0*/,  r9                            # 0a140
@@ -13301,10 +13330,10 @@ mtspr   1017/*l2cr*/,  r8                            # 0a160
 sync                                                 # 0a164
 isync                                                # 0a168
 
-bootstrap_cpu_0x44c:
+major_0x09dfc_0x370:
 mfspr    r8, 1017/*l2cr*/                            # 0a16c
 rlwinm.  r8,  r8, 31,  0,  0                         # 0a170
-bne+    bootstrap_cpu_0x44c                          # 0a174
+bne+    major_0x09dfc_0x370                          # 0a174
 mfspr    r8, 1017/*l2cr*/                            # 0a178
 lis      r9,      -0x21                              # 0a17c
 ori      r9,  r9,  0xffff                            # 0a180
@@ -13321,7 +13350,7 @@ mtspr   1017/*l2cr*/,  r8                            # 0a1a8
 sync                                                 # 0a1ac
 isync                                                # 0a1b0
 
-bootstrap_cpu_0x494:
+major_0x09dfc_0x3b8:
 lwz      r6,  0x007c(r16)                            # 0a1b4
 lwz      r7,  0x0000( r6)                            # 0a1b8
 lwz     r13,  0x00dc( r6)                            # 0a1bc
@@ -13354,7 +13383,7 @@ lwz     r29,  0x01ec( r6)                            # 0a224
 lwz     r30,  0x01f4( r6)                            # 0a228
 lwz     r31,  0x01fc( r6)                            # 0a22c
 andi.    r8, r11,  0x2000                            # 0a230
-beq-    bootstrap_cpu_0x5b0                          # 0a234
+beq-    major_0x09dfc_0x4d4                          # 0a234
 mfmsr    r8                                          # 0a238
 ori      r8,  r8,  0x2000                            # 0a23c
 mtmsr    r8                                          # 0a240
@@ -13394,7 +13423,7 @@ lfd     f29,  0x02e8( r6)                            # 0a2c4
 lfd     f30,  0x02f0( r6)                            # 0a2c8
 lfd     f31,  0x02f8( r6)                            # 0a2cc
 
-bootstrap_cpu_0x5b0:
+major_0x09dfc_0x4d4:
 lwz      r9,  0x0064(r16)                            # 0a2d0
 ori      r9,  r9,  0x8000                            # 0a2d4
 ori      r9,  r9,  0x4000                            # 0a2d8
@@ -13457,7 +13486,7 @@ lwz     r16,  0x0184( r6)                            # 0a3b8
 li       r3,  0x00                                   # 0a3bc
 b       skeleton_key                                 # 0a3c0
 
-bootstrap_cpu_0x6a4:
+major_0x09dfc_0x5c8:
 mflr     r9                                          # 0a3c4
 stw      r9,  0x0074(r16)                            # 0a3c8
 stw      r1,  0x0078(r16)                            # 0a3cc
@@ -13556,7 +13585,7 @@ b       major_0x0a500                                # 0a41c
 ************************************************************
 
 Xrefs:
-bootstrap_cpu
+major_0x09dfc
 
 ***********************************************************/
 
@@ -13917,6 +13946,7 @@ Xrefs:
 "lisori_caller"
 major_0x03940
 bootstrap_cpu
+major_0x09dfc
 
 ***********************************************************/
 
@@ -14582,7 +14612,7 @@ major_0x12248
 
 syscall_return_assert_lock_unheld:  /* < outside referer */
 sync                                                 # 0af38
-lwz     r16, -0x0b50( r1) # kdp.popular_lock         # 0af3c
+lwz     r16, -0x0b50( r1) # kdp.sch_lock             # 0af3c
 cmpwi    cr1, r16,  0x00                             # 0af40
 li      r16,  0x00                                   # 0af44
 bne+     cr1, syscall_return_assert_lock_unheld_0x1c # 0af48
@@ -14590,7 +14620,7 @@ mflr    r16                                          # 0af4c
 bl      dbgr                                         # 0af50
 
 syscall_return_assert_lock_unheld_0x1c:
-stw     r16, -0x0b50( r1) # kdp.popular_lock         # 0af54
+stw     r16, -0x0b50( r1) # kdp.sch_lock             # 0af54
 
 
 
@@ -14779,7 +14809,6 @@ stw     r16, -0x0b50( r1)                            # 0b020
 Xrefs:
 major_0x0af60
 major_0x0b144
-major_0x0b244
 NKRegisterCpuPlugin
 major_0x0be10
 NKxprintf
@@ -15306,39 +15335,12 @@ sync                                                 # 0b224
 lwz     r16, -0x0b90( r1)                            # 0b228
 cmpwi    cr1, r16,  0x00                             # 0b22c
 li      r16,  0x00                                   # 0b230
-bne+     cr1, nk_inert_call                          # 0b234
+bne+     cr1, major_0x0b144_0xfc                     # 0b234
 mflr    r16                                          # 0b238
 bl      dbgr                                         # 0b23c
 
-
-
-/***********************************************************
-
-                       nk_inert_call                        
-
-************************************************************
-
-Xrefs:
-major_0x0b144
-
-***********************************************************/
-
-nk_inert_call:  /* < outside referer */
+major_0x0b144_0xfc:
 stw     r16, -0x0b90( r1)                            # 0b240
-
-
-
-/***********************************************************
-
-                       major_0x0b244                        
-
-************************************************************
-
-Xrefs:
-nk_inert_call
-
-***********************************************************/
-
 b       syscall_return_kMPInsufficientResourcesErr   # 0b244
 
 
@@ -15555,6 +15557,8 @@ cmpwi    r9,  0x08                                   # 0b3f8
 mr      r30,  r8                                     # 0b3fc
 bne+    major_0x0b07c_0x28                           # 0b400
 li       r8,  0x20                                   # 0b404
+
+# r1 = kdp
 bl      boring                                       # 0b408
 mr.     r31,  r8                                     # 0b40c
 beq+    major_0x0af60                                # 0b410
@@ -16299,6 +16303,8 @@ bne+    syscall_return_kMPInvalidIDErr               # 0b980
 
 major_0x0b960_0x24:
 li       r8, 960                                     # 0b984
+
+# r1 = kdp
 bl      boring                                       # 0b988
 mr.     r31,  r8                                     # 0b98c
 beq+    major_0x0af60_0x20                           # 0b990
@@ -19101,6 +19107,8 @@ syscall
 
 major_0x0d204:  /* < outside referer */
 li       r8,  0x20                                   # 0d204
+
+# r1 = kdp
 bl      boring                                       # 0d208
 mr.     r31,  r8                                     # 0d20c
 beq+    major_0x0af60_0x20                           # 0d210
@@ -19657,6 +19665,8 @@ syscall
 
 major_0x0d70c:  /* < outside referer */
 li       r8,  0x40                                   # 0d70c
+
+# r1 = kdp
 bl      boring                                       # 0d710
 mr.     r31,  r8                                     # 0d714
 beq+    major_0x0af60_0x20                           # 0d718
@@ -19899,6 +19909,8 @@ lwz      r9,  0x0024( r8)                            # 0d910
 li       r8,  0x1c                                   # 0d914
 cmpwi    r9,  0x00                                   # 0d918
 bne-    major_0x0d8a0_0x9c                           # 0d91c
+
+# r1 = kdp
 bl      boring                                       # 0d920
 mr.     r30,  r8                                     # 0d924
 beq+    major_0x0af60                                # 0d928
@@ -20032,6 +20044,8 @@ syscall
 
 major_0x0da20:  /* < outside referer */
 li       r8,  0x28                                   # 0da20
+
+# r1 = kdp
 bl      boring                                       # 0da24
 mr.     r31,  r8                                     # 0da28
 beq+    major_0x0af60_0x20                           # 0da2c
@@ -21037,6 +21051,8 @@ mktask:  /* < outside referer */
 mr      r27,  r8                                     # 0e330
 mflr    r29                                          # 0e334
 li       r8,  0x400                                  # 0e338
+
+# r1 = kdp
 bl      boring                                       # 0e33c
 mr.     r28,  r8                                     # 0e340
 beq-    mktask_0x20c                                 # 0e344
@@ -21052,6 +21068,8 @@ lis      r8,       0x2d2d                            # 0e368
 ori      r8,  r8,  0x2d2d                            # 0e36c
 stw      r8,  0x0074(r28)                            # 0e370
 li       r8,  0x1c                                   # 0e374
+
+# r1 = kdp
 bl      boring                                       # 0e378
 cmpwi    r8,  0x00                                   # 0e37c
 stw      r8,  0x009c(r28)                            # 0e380
@@ -21078,6 +21096,8 @@ stw      r8,  0x00a0(r28)                            # 0e3d0
 rlwinm.  r8,  r7,  0, 12, 12                         # 0e3d4
 beq-    mktask_0xe8                                  # 0e3d8
 li       r8,  0x214                                  # 0e3dc
+
+# r1 = kdp
 bl      boring                                       # 0e3e0
 andi.    r9,  r8,  0x0f                              # 0e3e4
 cmpwi    cr1,  r8,  0x00                             # 0e3e8
@@ -22843,6 +22863,8 @@ addis   r26, r26,  0x1000                            # 0f448
 cmplwi  r26,  0x00                                   # 0f44c
 bne+    convert_pmdts_to_areas_0x54                  # 0f450
 li       r8, 160                                     # 0f454
+
+# r1 = kdp
 bl      boring                                       # 0f458
 mr.     r31,  r8                                     # 0f45c
 beq+    _dbgr_0x0f380                                # 0f460
@@ -22870,6 +22892,8 @@ bl      looks_like_poolextend                        # 0f4b4
 
 convert_pmdts_to_areas_0x100:
 li       r8, 160                                     # 0f4b8
+
+# r1 = kdp
 bl      boring                                       # 0f4bc
 mr.     r31,  r8                                     # 0f4c0
 beq+    _dbgr_0x0f380                                # 0f4c4
@@ -22914,6 +22938,8 @@ stw      r8, -0x026c( r1)                            # 0f54c
 
 convert_pmdts_to_areas_0x198:
 li       r8, 160                                     # 0f550
+
+# r1 = kdp
 bl      boring                                       # 0f554
 mr.     r31,  r8                                     # 0f558
 beq+    _dbgr_0x0f380                                # 0f55c
@@ -22978,6 +23004,8 @@ lwz     r16, -0x0270( r1)                            # 0f634
 subf.   r16, r15, r16                                # 0f638
 ble+    convert_pmdts_to_areas_0x5c                  # 0f63c
 li       r8, 160                                     # 0f640
+
+# r1 = kdp
 bl      boring                                       # 0f644
 mr.     r31,  r8                                     # 0f648
 beq+    _dbgr_0x0f380                                # 0f64c
@@ -23007,6 +23035,8 @@ b       convert_pmdts_to_areas_0x214                 # 0f698
 
 convert_pmdts_to_areas_0x2e4:
 li       r8, 160                                     # 0f69c
+
+# r1 = kdp
 bl      boring                                       # 0f6a0
 mr.     r31,  r8                                     # 0f6a4
 beq+    _dbgr_0x0f380                                # 0f6a8
@@ -23242,6 +23272,8 @@ bl      1f                                           # 0f89c
 1: mflr  r8                                          # 0f8a4
 bl      print_string                                 # 0f8a8
 li       r8,  0xc0                                   # 0f8ac
+
+# r1 = kdp
 bl      boring                                       # 0f8b0
 mr.     r31,  r8                                     # 0f8b4
 beq-    NKCreateAddressSpaceSub_0x1c0                # 0f8b8
@@ -23283,6 +23315,8 @@ ori     r17, r17,  0x6561                            # 0f93c
 stw     r16,  0x000c(r16)                            # 0f940
 stw     r17,  0x0004(r16)                            # 0f944
 li       r8, 160                                     # 0f948
+
+# r1 = kdp
 bl      boring                                       # 0f94c
 mr.     r29,  r8                                     # 0f950
 beq-    NKCreateAddressSpaceSub_0x1a0                # 0f954
@@ -23564,6 +23598,8 @@ bne+    major_0x0b07c_0x28                           # 0fb68
 
 major_0x0fb34_0x38:
 li       r8, 160                                     # 0fb6c
+
+# r1 = kdp
 bl      boring                                       # 0fb70
 mr.     r31,  r8                                     # 0fb74
 beq+    major_0x0af60                                # 0fb78
@@ -23901,6 +23937,8 @@ bne-    createarea_0x41c                             # 0ffd0
 lwz      r8,  0x002c(r31)                            # 0ffd4
 rlwinm   r8,  r8, 22, 10, 29                         # 0ffd8
 mr      r29,  r8                                     # 0ffdc
+
+# r1 = kdp
 bl      boring                                       # 0ffe0
 cmpwi    r8,  0x00                                   # 0ffe4
 stw      r8,  0x0040(r31)                            # 0ffe8
@@ -23919,6 +23957,8 @@ lwz      r8,  0x002c(r31)                            # 10010
 bne-    createarea_0x45c                             # 10014
 rlwinm   r8,  r8, 21, 11, 30                         # 10018
 mr      r29,  r8                                     # 1001c
+
+# r1 = kdp
 bl      boring                                       # 10020
 cmpwi    r8,  0x00                                   # 10024
 stw      r8,  0x003c(r31)                            # 10028
@@ -24332,6 +24372,8 @@ lwz     r16,  0x0008(r30)                            # 10440
 rlwinm.  r8, r16,  0, 28, 28                         # 10444
 bne+    major_0x0b054                                # 10448
 li       r8, 160                                     # 1044c
+
+# r1 = kdp
 bl      boring                                       # 10450
 mr.     r31,  r8                                     # 10454
 beq+    major_0x0af60                                # 10458
@@ -24878,6 +24920,8 @@ b       major_0x108fc_0x15c                          # 10a14
 
 major_0x108fc_0x11c:
 li       r8,  0x214                                  # 10a18
+
+# r1 = kdp
 bl      boring                                       # 10a1c
 mr.     r16,  r8                                     # 10a20
 beq+    major_0x0af60                                # 10a24
@@ -28066,6 +28110,10 @@ say_nanodebugger_activated
 major_0x15144
 major_0x151b0
 
+************************************************************
+
+> r1    = kdp
+
 ***********************************************************/
 
 boring:  /* < outside referer */
@@ -28080,7 +28128,7 @@ mflr    r17                                          # 12828
 mfspr   r18, 272/*sprg0*/                            # 1282c
 mr      r15,  r8                                     # 12830
 mr      r16,  r9                                     # 12834
-addi     r8,  r1, -0xad0                             # 12838
+addi     r8,  r1, -0xad0 # kdp.pool_lock             # 12838
 
 # r8 = lock
 bl      lock                                         # 1283c
@@ -28096,7 +28144,7 @@ ble+    _dbgr_0x12780                                # 12858
 bgt-     cr1, boring_0xb4                            # 1285c
 addi     r8,  r8,  0x27                              # 12860
 rlwinm   r8,  r8,  0,  0, 26                         # 12864
-addi    r14,  r1, -0xab0                             # 12868
+addi    r14,  r1, -0xab0 # kdp.-0xab0                # 12868
 lwz     r15,  0x0008(r14)                            # 1286c
 
 boring_0x54:
@@ -28104,14 +28152,14 @@ cmpw    r14, r15                                     # 12870
 bne+    boring_0xbc                                  # 12874
 li       r8,  0x00                                   # 12878
 li       r9,  0x01                                   # 1287c
-lwz     r16, -0x0430( r1)                            # 12880
-lwz     r17, -0x042c( r1)                            # 12884
+lwz     r16, -0x0430( r1) # kdp.-0x430               # 12880
+lwz     r17, -0x042c( r1) # kdp.-0x42c               # 12884
 subf.   r16,  r9, r16                                # 12888
 subf    r17,  r9, r17                                # 1288c
 blt-    major_0x129cc                                # 12890
-stw     r16, -0x0430( r1)                            # 12894
-stw     r17, -0x042c( r1)                            # 12898
-lwz      r8, -0x0448( r1)                            # 1289c
+stw     r16, -0x0430( r1) # kdp.-0x430               # 12894
+stw     r17, -0x042c( r1) # kdp.-0x42c               # 12898
+lwz      r8, -0x0448( r1) # kdp.-0x448               # 1289c
 lwz     r17,  0x0008( r8)                            # 128a0
 lwz     r18,  0x000c( r8)                            # 128a4
 stw     r17,  0x0008(r18)                            # 128a8
@@ -28136,10 +28184,10 @@ b       major_0x129cc                                # 128d4
 boring_0xbc:
 lwz     r16,  0x0000(r15)                            # 128d8
 cmplw   r16,  r8                                     # 128dc
-lis     r20,       0x6672                            # 128e0
+lis     r20,      256 * 'f'+'r'                      # 128e0
 bgt-    boring_0x120                                 # 128e4
 beq-    boring_0x13c                                 # 128e8
-ori     r20, r20,  0x6565                            # 128ec
+ori     r20, r20, 256 * 'e'+'e'                      # 128ec
 lwz     r16,  0x0000(r15)                            # 128f0
 add     r18, r16, r15                                # 128f4
 lwz     r19,  0x0004(r18)                            # 128f8
@@ -28178,8 +28226,8 @@ stw     r16,  0x0008(r14)                            # 12960
 stw     r14,  0x000c(r16)                            # 12964
 
 boring_0x14c:
-lis      r8,      -0x7894                            # 12968
-ori      r8,  r8,  0x6f63                            # 1296c
+lis      r8,      256 * 135+'l'                      # 12968
+ori      r8,  r8, 256 * 'o'+'c'                      # 1296c
 stw      r8,  0x0004(r15)                            # 12970
 addi     r8, r15,  0x08                              # 12974
 beq-     cr7, major_0x129cc                          # 12978
@@ -28434,21 +28482,21 @@ bgt+    poolextend_zeroloop                          # 12b24
 #   Put the funny stuff in
 li      r16,  0xfe8                                  # 12b28
 stw     r16,  0x0000(r17)                            # 12b2c
-lis     r16,      (135<<8) + ('B')                   # 12b30
-ori     r16, r16, ('G'<<8) + ('N')                   # 12b34
+lis     r16,      256 * 135+'B'                      # 12b30
+ori     r16, r16, 256 * 'G'+'N'                      # 12b34
 stw     r16,  0x0004(r17)                            # 12b38
 addi    r15, r17,  0x08                              # 12b3c
 li      r16,  0xfe0                                  # 12b40
 stw     r16,  0x0000(r15)                            # 12b44
-lis     r16,      (135<<8) + ('l')                   # 12b48
-ori     r16, r16, ('o'<<8) + ('c')                   # 12b4c
+lis     r16,      256 * 135+'l'                      # 12b48
+ori     r16, r16, 256 * 'o'+'c'                      # 12b4c
 stw     r16,  0x0004(r15)                            # 12b50
 addi    r15, r17,  0xfe8                             # 12b54
 lwz     r18, -0x0aa0( r1) # kdp.-0xaa0               # 12b58
 subf    r18, r15, r18                                # 12b5c
 stw     r18,  0x0000(r15)                            # 12b60
-lis     r16,      (135<<8) + ('E')                   # 12b64
-ori     r16, r16, ('N'<<8) + ('D')                   # 12b68
+lis     r16,      256 * 135+'E'                      # 12b64
+ori     r16, r16, 256 * 'N'+'D'                      # 12b68
 stw     r16,  0x0004(r15)                            # 12b6c
 lwz     r16, -0x0a9c( r1) # kdp.-0xa9c               # 12b70
 stw     r16,  0x0008(r15)                            # 12b74
@@ -28634,6 +28682,8 @@ rlwinm.  r8,  r8,  0,  0, 14                         # 12d8c
 beq-    say_nanodebugger_activated_0x7c              # 12d90
 mflr    r30                                          # 12d94
 li       r8,  0x40                                   # 12d98
+
+# r1 = kdp
 bl      boring                                       # 12d9c
 mr.     r31,  r8                                     # 12da0
 beq+    _dbgr_0x12d40                                # 12da4
@@ -28650,6 +28700,8 @@ rlwinm.  r8,  r8,  0,  0, 14                         # 12dc4
 beq-    say_nanodebugger_activated_0xb4              # 12dc8
 mflr    r30                                          # 12dcc
 li       r8,  0x40                                   # 12dd0
+
+# r1 = kdp
 bl      boring                                       # 12dd4
 mr.     r31,  r8                                     # 12dd8
 beq+    _dbgr_0x12d40                                # 12ddc
@@ -28673,6 +28725,8 @@ ori      r8,  r8,  0x02                              # 12e18
 stw      r8,  0x0edc( r1)                            # 12e1c
 mflr    r30                                          # 12e20
 li       r8,  0x40                                   # 12e24
+
+# r1 = kdp
 bl      boring                                       # 12e28
 mr.     r31,  r8                                     # 12e2c
 beq+    _dbgr_0x12d40                                # 12e30
@@ -29570,8 +29624,8 @@ stw     r23, -0x0970( r1) # kdp.-0x970               # 137e8
 addi     r9,  r1, -0x9f0 # kdp.-0x9f0                # 137ec
 
 init_rdyqs_0x2c:
-lis      r8,      ('R'<<8) + ('D')                   # 137f0
-ori      r8,  r8, ('Y'<<8) + ('Q')                   # 137f4
+lis      r8,      256 * 'R'+'D'                      # 137f0
+ori      r8,  r8, 256 * 'Y'+'Q'                      # 137f4
 stw      r8,  0x0004( r9)                            # 137f8
 stw      r9,  0x0008( r9)                            # 137fc
 stw      r9,  0x000c( r9)                            # 13800
@@ -31975,6 +32029,8 @@ setup
 major_0x15144:  /* < outside referer */
 mflr    r23                                          # 15144
 li       r8, 520                                     # 15148
+
+# r1 = kdp
 bl      boring                                       # 1514c
 mr.     r22,  r8                                     # 15150
 stw      r8, -0x0a98( r1)                            # 15154
@@ -31987,6 +32043,8 @@ lis      r9,       0x494e                            # 1516c
 ori      r9,  r9,  0x4458                            # 15170
 stw      r9,  0x0004(r22)                            # 15174
 li       r8,  0xfd8                                  # 15178
+
+# r1 = kdp
 bl      boring                                       # 1517c
 cmpwi    r8,  0x00                                   # 15180
 stw      r8,  0x0008(r22)                            # 15184
@@ -32073,6 +32131,8 @@ li       r8,  0x00                                   # 15238
 beqlr-                                               # 1523c
 mflr    r23                                          # 15240
 li       r8,  0xfd8                                  # 15244
+
+# r1 = kdp
 bl      boring                                       # 15248
 mr.     r18,  r8                                     # 1524c
 mtlr    r23                                          # 15250
@@ -32851,7 +32911,7 @@ int_handler
 _int_handler_kind_01:  /* < outside referer */
 mr       r8,  r8                                     # 15840
 mr       r9,  r9                                     # 15844
-addi     r8,  r1, -0xb70 # kdp.interrupt_lock        # 15848
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15848
 
 # r8 = lock
 bl      lock                                         # 1584c
@@ -32935,7 +32995,7 @@ int_handler
 _int_handler_kind_03:  /* < outside referer */
 mr       r8,  r8                                     # 15900
 mr       r9,  r9                                     # 15904
-addi     r8,  r1, -0xb70 # kdp.interrupt_lock        # 15908
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15908
 
 # r8 = lock
 bl      lock                                         # 1590c
@@ -33019,7 +33079,7 @@ int_handler
 _int_handler_kind_05:  /* < outside referer */
 mr       r8,  r8                                     # 159c0
 mr       r9,  r9                                     # 159c4
-addi     r8,  r1, -0xb70 # kdp.interrupt_lock        # 159c8
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 159c8
 
 # r8 = lock
 bl      lock                                         # 159cc
@@ -33137,7 +33197,7 @@ int_handler
 _int_handler_kind_02:  /* < outside referer */
 mr       r8,  r8                                     # 15b00
 mr       r9,  r9                                     # 15b04
-addi     r8,  r1, -0xb70 # kdp.interrupt_lock        # 15b08
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15b08
 
 # r8 = lock
 bl      lock                                         # 15b0c
@@ -33239,7 +33299,7 @@ int_handler
 _int_handler_kind_07:  /* < outside referer */
 mr       r8,  r8                                     # 15c00
 mr       r9,  r9                                     # 15c04
-addi     r8,  r1, -0xb70 # kdp.interrupt_lock        # 15c08
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15c08
 
 # r8 = lock
 bl      lock                                         # 15c0c
@@ -33357,7 +33417,7 @@ int_handler
 _int_handler_kind_10:  /* < outside referer */
 mr       r8,  r8                                     # 15d40
 mr       r9,  r9                                     # 15d44
-addi     r8,  r1, -0xb70 # kdp.interrupt_lock        # 15d48
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15d48
 
 # r8 = lock
 bl      lock                                         # 15d4c
@@ -33461,7 +33521,7 @@ int_handler
 _int_handler_kind_04:  /* < outside referer */
 mr       r8,  r8                                     # 15e40
 mr       r9,  r9                                     # 15e44
-addi     r8,  r1, -0xb70 # kdp.interrupt_lock        # 15e48
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15e48
 
 # r8 = lock
 bl      lock                                         # 15e4c
@@ -33549,7 +33609,7 @@ int_handler
 _int_handler_kind_06:  /* < outside referer */
 mr       r8,  r8                                     # 15f00
 mr       r9,  r9                                     # 15f04
-addi     r8,  r1, -0xb70 # kdp.interrupt_lock        # 15f08
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15f08
 
 # r8 = lock
 bl      lock                                         # 15f0c
@@ -33767,7 +33827,7 @@ int_handler
 _int_handler_kind_08:  /* < outside referer */
 mr       r8,  r8                                     # 16180
 mr       r9,  r9                                     # 16184
-addi     r8,  r1, -0xb70 # kdp.interrupt_lock        # 16188
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 16188
 
 # r8 = lock
 bl      lock                                         # 1618c
@@ -35846,7 +35906,7 @@ bl      print_string                                 # 17a6c
 bl      major_0x187b0_0x78                           # 17a70
 lwz      r8,  0x0904( r1) # kdp.0x904                # 17a74
 sync                                                 # 17a78
-lwz      r9, -0x0b30( r1) # kdp.-0xb30               # 17a7c
+lwz      r9, -0x0b30( r1) # kdp.thud_lock            # 17a7c
 cmpwi    cr1,  r9,  0x00                             # 17a80
 li       r9,  0x00                                   # 17a84
 bne+     cr1, dbgr_0x7b4                             # 17a88
@@ -35854,7 +35914,7 @@ mflr     r9                                          # 17a8c
 bl      dbgr                                         # 17a90
 
 dbgr_0x7b4:
-stw      r9, -0x0b30( r1) # kdp.-0xb30               # 17a94
+stw      r9, -0x0b30( r1) # kdp.thud_lock            # 17a94
 mtlr     r8                                          # 17a98
 blr                                                  # 17a9c
 
@@ -38566,8 +38626,8 @@ major_0x18d5c
 
 load_log_colours:  /* < outside referer */
 blrl                                                 # 19b20
-.long   0x4444ff
-.long   0x000000
+.long   0xfffffeee                                   # 19b24
+.long   0x44444444                                   # 19b28
 
 
 
