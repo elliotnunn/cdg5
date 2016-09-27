@@ -175,6 +175,11 @@ debug? if cr ." init-program" then
 init-program
 debug? if cr ." .registers" .registers then
 debug? if cr ." go" cr then
+
+\ uncomment to debug
+\" /" select-dev
+\2000000 encode-int " AAPL,debug" property
+
 go
 cr ." end of BOOT-SCRIPT"
 </BOOT-SCRIPT>
