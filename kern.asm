@@ -111,9 +111,9 @@ stw     r10,  0x0000(r12)                            # 000c8
 lwz      r3,  0x0630( r1)                            # 000cc
 
 # r3 = ConfigInfo
-bl      choose_int_handler_kind                      # 000d0
+bl      get_pih_addr                                 # 000d0
 # r12 = clobbered
-# r7 = interrupt handler address
+# r7 = pih_pa
 
 stw      r7,  0x05b0( r1)                            # 000d4
 88: bl  99f                                          # 000d8
@@ -644,8 +644,8 @@ stwx    r12, r11, r10                                # 00700
 bgt+    new_world_0x250                              # 00704
 
 new_world_0x260:
-stw      r3,  0x0630( r1) # kdp.ConfigInfo           # 00708
-lwz      r9,  0x0630( r1) # kdp.ConfigInfo           # 0070c
+stw      r3,  0x0630( r1) # kdp.pa_ConfigInfo        # 00708
+lwz      r9,  0x0630( r1) # kdp.pa_ConfigInfo        # 0070c
 lhz      r8,  0x0378( r9)                            # 00710
 cmplwi   r8,  0x101                                  # 00714
 lwz      r8,  0x0edc( r1) # kdp.0xedc                # 00718
@@ -685,16 +685,16 @@ stw     r13,  0x0638( r1) # kdp.0x638                # 007b4
 lwz     r12,  0x064c( r1) # kdp.phys_kern_base       # 007b8
 
 # r3 = ConfigInfo
-bl      choose_int_handler_kind                      # 007bc
+bl      get_pih_addr                                 # 007bc
 # r12 = clobbered
-# r7 = interrupt handler address
+# r7 = pih_pa
 
-stw      r7,  0x05b0( r1) # kdp._int_handler         # 007c0
+stw      r7,  0x05b0( r1) # kdp.pih_proc_ptr         # 007c0
 lwz     r11, -0x0020( r1) # kdp.irp                  # 007c4
 addi    r12, r14,  0x01                              # 007c8
 stw     r12,  0x0dcc(r11)                            # 007cc
 addi     r8,  r1,  0x1000 # kdp.0x1000               # 007d0
-stw      r8,  0x0634( r1) # kdp.edp                  # 007d4
+stw      r8,  0x0634( r1) # kdp.pa_edp               # 007d4
 add     r12, r13, r15                                # 007d8
 stw     r12,  0x063c( r1) # kdp.0x63c                # 007dc
 lwz     r12,  0x0360( r3) # ConfigInfo.phys_ram_base # 007e0
@@ -1915,11 +1915,13 @@ stwx     r0, r22,  r9                                # 014d4
 bgt+    setup_0x98                                   # 014d8
 
 #   ...done
-lwz     r26,  0x0630( r1) # kdp.ConfigInfo           # 014dc
+lwz     r26,  0x0630( r1) # kdp.pa_ConfigInfo        # 014dc
 lwz     r25,  0x064c( r1) # kdp.phys_kern_base       # 014e0
 lwz     r18,  0x0684( r1) # kdp.0x684                # 014e4
-lis     r23,      dbgr@h                             # 014e8
-ori     r23, r23, dbgr@l                             # 014ec
+
+#   Fill SIX vector tables, in kdp and below, with CRASHes...
+lis     r23,      panic@h                            # 014e8
+ori     r23, r23, panic@l                            # 014ec
 add     r23, r23, r25                                # 014f0
 addi     r8,  r1,  0x360 # kdp.0x360                 # 014f4
 li      r22,  0xc0                                   # 014f8
@@ -1956,6 +1958,9 @@ li      r22,  0xc0                                   # 01528
 # r22 = len in bytes
 # r23 = fillword
 bl      wordfill                                     # 0152c
+
+#   ...done
+#   Fill ONE vector table, below kdp, with something ELSE...
 lis     r23,      rfi_to_kern@h                      # 01530
 ori     r23, r23, rfi_to_kern@l                      # 01534
 add     r23, r23, r25                                # 01538
@@ -1966,11 +1971,15 @@ li      r22,  0xc0                                   # 01540
 # r22 = len in bytes
 # r23 = fillword
 bl      wordfill                                     # 01544
+
+#   ...done
 addi     r9,  r1,  0x360 # kdp.0x360                 # 01548
+
+#   Point SPRG3=vecBase at one of those tables.
 mtspr   275/*sprg3*/,  r9                            # 0154c
 addi     r8,  r1,  0x420 # kdp.0x420                 # 01550
-lis     r23,      dbgr@h                             # 01554
-ori     r23, r23, dbgr@l                             # 01558
+lis     r23,      panic@h                            # 01554
+ori     r23, r23, panic@l                            # 01558
 add     r23, r23, r25                                # 0155c
 stw     r23,  0x0004( r9) # kdp.0x364                # 01560
 stw     r23,  0x0004( r8) # kdp.0x424                # 01564
@@ -2045,8 +2054,8 @@ add     r23, r23, r25                                # 01674
 stw     r23,  0x005c( r9) # kdp.0x3bc                # 01678
 stw     r23,  0x005c( r8) # kdp.0x47c                # 0167c
 addi     r8,  r1,  0x4e0 # kdp.0x4e0                 # 01680
-lis     r23,      dbgr@h                             # 01684
-ori     r23, r23, dbgr@l                             # 01688
+lis     r23,      panic@h                            # 01684
+ori     r23, r23, panic@l                            # 01688
 add     r23, r23, r25                                # 0168c
 stw     r23,  0x0004( r8) # kdp.0x4e4                # 01690
 lis     r23,      major_0x035a0_0x228@h              # 01694
@@ -2071,8 +2080,8 @@ li      r22,  0xc0                                   # 016d4
 # r22 = len in bytes
 # r23 = fillword
 bl      wordfill                                     # 016d8
-lis     r23,      dbgr@h                             # 016dc
-ori     r23, r23, dbgr@l                             # 016e0
+lis     r23,      panic@h                            # 016dc
+ori     r23, r23, panic@l                            # 016e0
 add     r23, r23, r25                                # 016e4
 stw     r23,  0x0004( r8) # kdp.-0x8cc               # 016e8
 lis     r23,      major_0x032c0@h                    # 016ec
@@ -2087,10 +2096,10 @@ lis     r23,      major_0x03460@h                    # 0170c
 ori     r23, r23, major_0x03460@l                    # 01710
 add     r23, r23, r25                                # 01714
 stw     r23,  0x0018( r8) # kdp.-0x8b8               # 01718
-bl      dbgr_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36
+bl      panic_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36
 addi     r8,  r1, -0x750 # kdp.-0x750                # 01720
-lis     r23,      dbgr@h                             # 01724
-ori     r23, r23, dbgr@l                             # 01728
+lis     r23,      panic@h                            # 01724
+ori     r23, r23, panic@l                            # 01728
 add     r23, r23, r25                                # 0172c
 stw     r23,  0x0004( r8) # kdp.-0x74c               # 01730
 lis     r23,      major_0x03940_0xc4@h               # 01734
@@ -2131,8 +2140,8 @@ lis     r23,      major_0x08640@h                    # 017b4
 ori     r23, r23, major_0x08640@l                    # 017b8
 add     r23, r23, r25                                # 017bc
 stw     r23,  0x000c( r8) # kdp.0x5fc                # 017c0
-lis     r23,      int_handler@h                      # 017c4
-ori     r23, r23, int_handler@l                      # 017c8
+lis     r23,      pih_indirect@h                     # 017c4
+ori     r23, r23, pih_indirect@l                     # 017c8
 add     r23, r23, r25                                # 017cc
 stw     r23,  0x0010( r8) # kdp.0x600                # 017d0
 lis     r23,      bootstrap_cpu@h                    # 017d4
@@ -2297,7 +2306,7 @@ li       r8,  0x20                                   # 01960
 # r1 = kdp
 bl      boring                                       # 01964
 mr.     r31,  r8                                     # 01968
-beq-    _dbgr_0x02940                                # 0196c
+beq-    panic_wrapper_0x02940                        # 0196c
 li       r9,  0x01                                   # 01970
 bl      major_0x151b0                                # 01974
 stw     r31, -0x041c( r1) # kdp.system_address_space # 01978
@@ -2319,7 +2328,7 @@ li       r8,  0x58                                   # 019b0
 # r1 = kdp
 bl      boring                                       # 019b4
 mr.     r31,  r8                                     # 019b8
-beq-    _dbgr_0x02940                                # 019bc
+beq-    panic_wrapper_0x02940                        # 019bc
 addi    r17, r31,  0x10                              # 019c0
 stw     r30,  0x0000(r17)                            # 019c4
 stw     r30,  0x0008(r17)                            # 019c8
@@ -2394,7 +2403,7 @@ ori      r8,  r8,  0xffff                            # 01af0
 stw      r8,  0x0038(r30)                            # 01af4
 oris     r8,  r8,  0xffff                            # 01af8
 stw      r8,  0x003c(r30)                            # 01afc
-lwz     r26,  0x0630( r1) # kdp.ConfigInfo           # 01b00
+lwz     r26,  0x0630( r1) # kdp.pa_ConfigInfo        # 01b00
 addi     r9, r26,  0x2c8                             # 01b04
 addi     r8,  r1,  0x27c # kdp.0x27c                 # 01b08
 li      r22,  0x80                                   # 01b0c
@@ -2417,7 +2426,7 @@ lwz      r9, -0x041c( r1) # kdp.system_address_space # 01b3c
 bl      NKCreateAddressSpaceSub                      # 01b40
 cmpwi    r8,  0x00                                   # 01b44
 mr      r30,  r9                                     # 01b48
-bne-    _dbgr_0x02940                                # 01b4c
+bne-    panic_wrapper_0x02940                        # 01b4c
 lwz     r31, -0x041c( r1) # kdp.system_address_space # 01b50
 lwz     r16,  0x0000(r30)                            # 01b54
 stw     r16,  0x000c(r31)                            # 01b58
@@ -2538,7 +2547,7 @@ bl      major_0x13f78                                # 01d10
 lwz      r8, -0x041c( r1) # kdp.system_address_space # 01d14
 bl      mktask                                       # 01d18
 mr.     r31,  r8                                     # 01d1c
-beq-    _dbgr_0x02940                                # 01d20
+beq-    panic_wrapper_0x02940                        # 01d20
 lwz      r8,  0x0000(r31)                            # 01d24
 stw      r8,  0x0ec4( r1) # kdp.blue_task            # 01d28
 li       r8, -0x01                                   # 01d2c
@@ -2630,7 +2639,7 @@ lwz      r8, -0x041c( r1) # kdp.system_address_space # 01ea8
 bl      mktask                                       # 01eac
 mr       r7, r31                                     # 01eb0
 mr.     r31,  r8                                     # 01eb4
-beq-    _dbgr_0x02940                                # 01eb8
+beq-    panic_wrapper_0x02940                        # 01eb8
 lis      r8,      256 * 'i'+'d'                      # 01ebc
 ori      r8,  r8, 256 * 'l'+'e'                      # 01ec0
 stw      r8,  0x0074(r31)                            # 01ec4
@@ -2690,10 +2699,10 @@ bl      NKCreateAddressSpaceSub                      # 01fac
 cmpwi    r8,  0x00                                   # 01fb0
 mr      r30,  r9                                     # 01fb4
 lwz     r31, -0x0324( r1) # kdp.-0x324               # 01fb8
-bne-    _dbgr_0x02940                                # 01fbc
+bne-    panic_wrapper_0x02940                        # 01fbc
 stw     r30,  0x0070(r31)                            # 01fc0
 lwz      r7, -0x0010( r1) # kdp.-0x10                # 01fc4
-lwz     r26,  0x0630( r1) # kdp.ConfigInfo           # 01fc8
+lwz     r26,  0x0630( r1) # kdp.pa_ConfigInfo        # 01fc8
 lwz     r18,  0x0684( r1) # kdp.0x684                # 01fcc
 beq-     cr5, setup_0xbcc                            # 01fd0
 mfspr    r8, 25/*sdr1*/                              # 01fd4
@@ -2756,7 +2765,7 @@ sth     r22,  0x0002( r8)                            # 0208c
 lhz     r23,  0x0000( r8)                            # 02090
 subf    r23, r22, r23                                # 02094
 sth     r23,  0x0000( r8)                            # 02098
-lwz     r19,  0x0634( r1) # kdp.edp                  # 0209c
+lwz     r19,  0x0634( r1) # kdp.pa_edp               # 0209c
 lwz      r8,  0x00c8(r26)                            # 020a0
 add      r8, r18,  r8                                # 020a4
 lwz     r23,  0x0004( r8)                            # 020a8
@@ -2954,7 +2963,7 @@ bl      1f                                           # 0235c
 .align  2                                            # 0237a
 1: mflr  r8                                          # 0237c
 bl      print_string                                 # 02380
-lwz      r8,  0x0630( r1) # kdp.ConfigInfo           # 02384
+lwz      r8,  0x0630( r1) # kdp.pa_ConfigInfo        # 02384
 lbz      r8,  0x0098( r8)                            # 02388
 mr       r8,  r8                                     # 0238c
 bl      print_twodig_decimal                         # 02390
@@ -3063,7 +3072,7 @@ mtxer    r9                                          # 02550
 bl      restore_registers_from_r14                   # 02554
 
 # r1 = kdp
-b       int_handler                                  # 02558
+b       pih_indirect                                 # 02558
 
 finish_old_world:
 addi    r29,  r1,  0x5e8 # kdp.0x5e8                 # 0255c
@@ -3071,7 +3080,7 @@ bl      major_0x05278                                # 02560
 bl      major_0x055e0                                # 02564
 bl      convert_pmdts_to_areas                       # 02568
 bl      major_0x06870                                # 0256c
-lwz     r27,  0x0630( r1) # kdp.ConfigInfo           # 02570
+lwz     r27,  0x0630( r1) # kdp.pa_ConfigInfo        # 02570
 lwz     r27,  0x0094(r27)                            # 02574
 bl      major_0x05524                                # 02578
 beq-    setup_0x1160                                 # 0257c
@@ -3083,7 +3092,7 @@ sync                                                 # 02590
 
 setup_0x1160:
 bl      major_0x04c20                                # 02594
-lwz     r27,  0x0630( r1) # kdp.ConfigInfo           # 02598
+lwz     r27,  0x0630( r1) # kdp.pa_ConfigInfo        # 02598
 lwz     r27,  0x009c(r27)                            # 0259c
 bl      major_0x05524                                # 025a0
 beq-    setup_0x1188                                 # 025a4
@@ -3095,7 +3104,7 @@ sync                                                 # 025b8
 
 setup_0x1188:
 bl      major_0x04c20                                # 025bc
-lwz     r27,  0x0630( r1) # kdp.ConfigInfo           # 025c0
+lwz     r27,  0x0630( r1) # kdp.pa_ConfigInfo        # 025c0
 lwz     r27,  0x00a0(r27)                            # 025c4
 lis     r19,       0x00                              # 025c8
 ori     r19, r19,  0xa000                            # 025cc
@@ -3115,7 +3124,7 @@ bl      major_0x04c20                                # 025f0
 cmplw   r27, r19                                     # 025f4
 addi    r27, r27, -0x1000                            # 025f8
 bgt+    setup_0x11a0                                 # 025fc
-lwz     r27,  0x0630( r1) # kdp.ConfigInfo           # 02600
+lwz     r27,  0x0630( r1) # kdp.pa_ConfigInfo        # 02600
 lwz     r27,  0x00a4(r27)                            # 02604
 bl      major_0x05524                                # 02608
 beq-    setup_0x11f0                                 # 0260c
@@ -3350,19 +3359,19 @@ boring
 looks_like_poolextend
 major_0x142a8
 major_0x14bcc
-major_0x154e0
+interrupt_blue
 NKPropogateExternalInterrupt
-_int_handler_kind_01
-_int_handler_kind_03
-_int_handler_kind_05
-_int_handler_kind_02
-_int_handler_kind_07
-_int_handler_kind_10
-_int_handler_kind_04
-_int_handler_kind_06
-_int_handler_kind_08
+pdm_pih_01
+pbx_pih_03
+gazelle_pih_05
+tnt_pih_02
+gossamer_pih_07
+unknown_pih_10
+cordyceps_pih_04
+newworld_pih_06
+unknown_pih_08
 print
-dbgr
+panic
 
 ************************************************************
 
@@ -3401,7 +3410,7 @@ bl      1f                                           # 02758
 .align  2                                            # 02776
 1: mflr  r8                                          # 02778
 bl      print_string                                 # 0277c
-bl      _dbgr_0x02940                                # 02780
+bl      panic_wrapper_0x02940                        # 02780
 
 lock_0x84:
 bl      lock_0x184                                   # 02784
@@ -3441,7 +3450,7 @@ bl      1f                                           # 02800
 .align  2                                            # 0280b
 1: mflr  r8                                          # 0280c
 bl      print_string                                 # 02810
-bl      _dbgr_0x02940                                # 02814
+bl      panic_wrapper_0x02940                        # 02814
 
 lock_0x118:
 lwz     r30,  0x0000(r31)                            # 02818
@@ -3540,7 +3549,7 @@ blr                                                  # 0293c
 
 /***********************************************************
 
-                       _dbgr_0x02940                        
+                   panic_wrapper_0x02940                    
 
 ************************************************************
 
@@ -3550,8 +3559,8 @@ lock
 
 ***********************************************************/
 
-_dbgr_0x02940:  /* < outside referer */
-b       dbgr                                         # 02940
+panic_wrapper_0x02940:  /* < outside referer */
+b       panic                                        # 02940
 
 
 
@@ -3573,7 +3582,7 @@ b       dbgr                                         # 02940
 
 /***********************************************************
 
-                       _dbgr_0x02960                        
+                   panic_wrapper_0x02960                    
 
 ************************************************************
 
@@ -3585,8 +3594,8 @@ major_0x046e0
 
 ***********************************************************/
 
-_dbgr_0x02960:  /* < outside referer */
-b       dbgr                                         # 02960
+panic_wrapper_0x02960:  /* < outside referer */
+b       panic                                        # 02960
 
 
 
@@ -3901,7 +3910,7 @@ major_0x0a600
 rtas_call
 major_0x0a8c0
 syscall_return
-major_0x154e0
+interrupt_blue
 
 ***********************************************************/
 
@@ -4097,10 +4106,10 @@ bl      1f                                           # 02f58
 1: mflr  r8                                          # 02f60
 bl      print_string                                 # 02f64
 mtlr    r16                                          # 02f68
-b       _dbgr_0x02960                                # 02f6c
+b       panic_wrapper_0x02960                        # 02f6c
 
 major_0x02ccc_0x2a4:  /* < outside referer */
-bsol+    cr6, _dbgr_0x02960                          # 02f70
+bsol+    cr6, panic_wrapper_0x02960                  # 02f70
 
 # r6 = ewa
 bl      save_registers_from_r14                      # 02f74
@@ -4135,7 +4144,7 @@ stw      r8,  0x00e0(r31)                            # 02fd4
 b       major_0x02ccc_0x380                          # 02fd8
 
 major_0x02ccc_0x310:  /* < outside referer */
-bnsl+    cr6, _dbgr_0x02960                          # 02fdc
+bnsl+    cr6, panic_wrapper_0x02960                  # 02fdc
 bl      major_0x02980_0x114                          # 02fe0
 stw     r10,  0x0084( r6)                            # 02fe4
 rlwinm   r7,  r7,  0, 28, 26                         # 02fe8
@@ -4179,7 +4188,7 @@ lis     r17,       0x4152                            # 0305c
 ori     r17, r17,  0x4541                            # 03060
 lwz     r16,  0x0004(r29)                            # 03064
 cmplw   r16, r17                                     # 03068
-bnel+   _dbgr_0x02960                                # 0306c
+bnel+   panic_wrapper_0x02960                        # 0306c
 lwz     r17,  0x0034(r29)                            # 03070
 addi    r17, r17,  0x01                              # 03074
 stw     r17,  0x0034(r29)                            # 03078
@@ -4264,7 +4273,7 @@ cmpwi    cr1, r31,  0x00                             # 03184
 li      r31,  0x00                                   # 03188
 bne+     cr1, major_0x02ccc_0x4cc                    # 0318c
 mflr    r31                                          # 03190
-bl      dbgr                                         # 03194
+bl      panic                                        # 03194
 
 major_0x02ccc_0x4cc:
 stw     r31, -0x0b50( r1)                            # 03198
@@ -4384,7 +4393,7 @@ cmpwi    cr1,  r8,  0x00                             # 03288
 li       r8,  0x00                                   # 0328c
 bne+     cr1, major_0x03200_0x9c                     # 03290
 mflr     r8                                          # 03294
-bl      dbgr                                         # 03298
+bl      panic                                        # 03298
 
 major_0x03200_0x9c:
 stw      r8, -0x0b50( r1)                            # 0329c
@@ -4756,7 +4765,7 @@ bnel-   major_0x054b8                                # 036a8
 li      r28,  0x43                                   # 036ac
 and     r28, r31, r28                                # 036b0
 cmpwi    cr7, r28,  0x43                             # 036b4
-beql+   _dbgr_0x02960                                # 036b8
+beql+   panic_wrapper_0x02960                        # 036b8
 mfspr   r28, 274/*sprg2*/                            # 036bc
 mtlr    r28                                          # 036c0
 bne-     cr7, major_0x035a0_0x144                    # 036c4
@@ -4825,7 +4834,7 @@ cmpwi    cr1, r28,  0x00                             # 03794
 li      r28,  0x00                                   # 03798
 bne+     cr1, major_0x035a0_0x208                    # 0379c
 mflr    r28                                          # 037a0
-bl      dbgr                                         # 037a4
+bl      panic                                        # 037a4
 
 major_0x035a0_0x208:
 stw     r28, -0x0b90( r1)                            # 037a8
@@ -4922,7 +4931,7 @@ cmpwi    cr1, r28,  0x00                             # 038fc
 li      r28,  0x00                                   # 03900
 bne+     cr1, major_0x035a0_0x370                    # 03904
 mflr    r28                                          # 03908
-bl      dbgr                                         # 0390c
+bl      panic                                        # 0390c
 
 major_0x035a0_0x370:
 stw     r28, -0x0b90( r1)                            # 03910
@@ -5002,7 +5011,7 @@ cmpwi    cr1, r28,  0x00                             # 0397c
 li      r28,  0x00                                   # 03980
 bne+     cr1, major_0x03940_0x50                     # 03984
 mflr    r28                                          # 03988
-bl      dbgr                                         # 0398c
+bl      panic                                        # 0398c
 
 major_0x03940_0x50:
 stw     r28, -0x0b90( r1)                            # 03990
@@ -5169,7 +5178,7 @@ cmpwi    cr1, r28,  0x00                             # 03b84
 li      r28,  0x00                                   # 03b88
 bne+     cr1, dsi_vector_0x58                        # 03b8c
 mflr    r28                                          # 03b90
-bl      dbgr                                         # 03b94
+bl      panic                                        # 03b94
 
 dsi_vector_0x58:
 stw     r28, -0x0b90( r1)                            # 03b98
@@ -5854,7 +5863,7 @@ cmpwi    cr1,  r8,  0x00                             # 042d0
 li       r8,  0x00                                   # 042d4
 bne+     cr1, major_0x04240_0xa4                     # 042d8
 mflr     r8                                          # 042dc
-bl      dbgr                                         # 042e0
+bl      panic                                        # 042e0
 
 major_0x04240_0xa4:
 stw      r8, -0x0b50( r1)                            # 042e4
@@ -5929,7 +5938,7 @@ cmpwi    cr1,  r8,  0x00                             # 04370
 li       r8,  0x00                                   # 04374
 bne+     cr1, major_0x04300_0x84                     # 04378
 mflr     r8                                          # 0437c
-bl      dbgr                                         # 04380
+bl      panic                                        # 04380
 
 major_0x04300_0x84:
 stw      r8, -0x0b50( r1)                            # 04384
@@ -6080,7 +6089,7 @@ b       major_0x02980_0x134                          # 04504
 
 Xrefs:
 setup
-dbgr_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36
+panic_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36
 
 ************************************************************
 
@@ -6242,11 +6251,7 @@ b       int_teardown                                 # 0465c
 
 /***********************************************************
 
-                        int_handler                         
-
-************************************************************
-
-Jumps to the interrupt handler that was chosen based on ConfigInfo.
+                        pih_indirect                        
 
 ************************************************************
 
@@ -6261,8 +6266,8 @@ major_0x04880
 
 ***********************************************************/
 
-int_handler:  /* < outside referer */
-lwz      r9,  0x05b0( r1) # kdp._int_handler         # 04660
+pih_indirect:  /* < outside referer */
+lwz      r9,  0x05b0( r1) # kdp.pih_proc_ptr         # 04660
 mtlr     r9                                          # 04664
 blr                                                  # 04668
 
@@ -6321,7 +6326,7 @@ stw      r9,  0x0030( r1)                            # 046bc
 lwz      r8,  0x016c( r6)                            # 046c0
 stw      r8,  0x0034( r1)                            # 046c4
 stmw    r14,  0x0038( r1)                            # 046c8
-bl      _dbgr_0x02960                                # 046cc
+bl      panic_wrapper_0x02960                        # 046cc
 
 
 
@@ -6394,7 +6399,7 @@ bl      int_prepare                                  # 046e0
 # r13 = cr
 
 mtcrf    0x3f,  r7                                   # 046e4
-bnel+    cr2, _dbgr_0x02960                          # 046e8
+bnel+    cr2, panic_wrapper_0x02960                  # 046e8
 li       r8,  0x00                                   # 046ec
 b       major_0x02980_0x134                          # 046f0
 
@@ -6598,7 +6603,7 @@ lwz      r9,  0x0020( r9)                            # 04890
 cmpwi    r9,  0x02                                   # 04894
 
 # r1 = kdp
-blt+    int_handler                                  # 04898
+blt+    pih_indirect                                 # 04898
 
 # r6 = ewa
 bl      save_registers_from_r14                      # 0489c
@@ -6619,11 +6624,11 @@ cmpwi    cr1,  r8, -0x725d                           # 048b8
 cmpwi    cr2,  r8, -0x725f                           # 048bc
 
 # r1 = kdp
-beq+    int_handler                                  # 048c0
+beq+    pih_indirect                                 # 048c0
 beq+     cr1, skeleton_key                           # 048c4
 
 # r1 = kdp
-bne+     cr2, int_handler                            # 048c8
+bne+     cr2, pih_indirect                           # 048c8
 mfspr    r9, 272/*sprg0*/                            # 048cc
 li       r8,  0x01                                   # 048d0
 stb      r8, -0x0118( r9)                            # 048d4
@@ -6644,6 +6649,10 @@ b       skeleton_key                                 # 048d8
 /***********************************************************
 
                             SIGP                            
+
+************************************************************
+
+Really need to figure out what this does...
 
 ************************************************************
 
@@ -6961,6 +6970,7 @@ b       major_0x02980_0x134                          # 04b68
 
 ************************************************************
 
+NB: I named this function too early. I do not understand it.
 incr_srr0__copy_sprg2_to_lr__copy_sprg1_to_r1__rfi
 The convention is:
 
@@ -7054,7 +7064,7 @@ rfi                                                  # 04bd8
 
 /***********************************************************
 
-                       _dbgr_0x04c00                        
+                   panic_wrapper_0x04c00                    
 
 ************************************************************
 
@@ -7063,8 +7073,8 @@ major_0x04c20
 
 ***********************************************************/
 
-_dbgr_0x04c00:  /* < outside referer */
-b       dbgr                                         # 04c00
+panic_wrapper_0x04c00:  /* < outside referer */
+b       panic                                        # 04c00
 
 
 
@@ -7214,7 +7224,7 @@ rlwimi  r31, r28,  0, 30, 30                         # 04dac
 xori    r31, r31,  0x02                              # 04db0
 beq-    major_0x04c20_0x208                          # 04db4
 blt+     cr7, major_0x04c20_0x44                     # 04db8
-bl      _dbgr_0x04c00                                # 04dbc
+bl      panic_wrapper_0x04c00                        # 04dbc
 
 major_0x04c20_0x1a0:
 lwz     r29,  0x05e8( r1)                            # 04dc0
@@ -7372,7 +7382,7 @@ xori    r31, r31,  0x40                              # 04fc4
 rlwimi  r31, r28, 30, 31, 31                         # 04fc8
 beq+    major_0x04c20_0x208                          # 04fcc
 blt+     cr7, major_0x04c20_0x44                     # 04fd0
-bl      _dbgr_0x04c00                                # 04fd4
+bl      panic_wrapper_0x04c00                        # 04fd4
 
 major_0x04c20_0x3b8:
 ori     r28, r27,  0xfff                             # 04fd8
@@ -7423,7 +7433,7 @@ major_0x04c20_0x444:
 addi     r9,  r9, -0x01                              # 05064
 cmpwi    cr7,  r9,  0x00                             # 05068
 rlwinm  r31, r30,  0, 25, 25                         # 0506c
-blel+    cr7, _dbgr_0x04c00                          # 05070
+blel+    cr7, panic_wrapper_0x04c00                  # 05070
 rlwinm  r28, r30,  1,  0,  3                         # 05074
 neg     r31, r31                                     # 05078
 rlwimi  r28, r30, 22,  4,  9                         # 0507c
@@ -7465,7 +7475,7 @@ mr      r31,  r8                                     # 05100
 cmplw   r16, r28                                     # 05104
 mr       r8, r28                                     # 05108
 bgt-    major_0x04c20_0x600                          # 0510c
-bgt+    _dbgr_0x04c00                                # 05110
+bgt+    panic_wrapper_0x04c00                        # 05110
 bl      major_0x12248_0x1e4                          # 05114
 mr      r26, r30                                     # 05118
 beql+   major_0x04c20_0x88                           # 0511c
@@ -7476,10 +7486,10 @@ lwz     r31,  0x0004(r29)                            # 05124
 andi.   r30, r28,  0x800                             # 05128
 rlwinm  r30, r28, 23,  9, 28                         # 0512c
 xor     r30, r30, r29                                # 05130
-beq+    _dbgr_0x04c00                                # 05134
+beq+    panic_wrapper_0x04c00                        # 05134
 andi.   r30, r30,  0xffff                            # 05138
 xori    r28, r28,  0x800                             # 0513c
-bne+    _dbgr_0x04c00                                # 05140
+bne+    panic_wrapper_0x04c00                        # 05140
 rlwimi  r28, r31,  0,  0, 19                         # 05144
 rlwimi  r28, r31, 29, 27, 27                         # 05148
 rlwimi  r28, r31, 27, 28, 28                         # 0514c
@@ -8032,7 +8042,7 @@ Xrefs:
 ***********************************************************/
 
 funny_debug_place:  /* < outside referer */
-bl      dbgr                                         # 05800
+bl      panic                                        # 05800
 b       major_0x05808_0x244                          # 05804
 
 
@@ -10155,10 +10165,10 @@ mtlr     r9                                          # 0766c
 blr                                                  # 07670
 
 major_0x07658_0x1c:
-b       dbgr                                         # 07674
-b       dbgr                                         # 07678
-b       dbgr                                         # 0767c
-b       dbgr                                         # 07680
+b       panic                                        # 07674
+b       panic                                        # 07678
+b       panic                                        # 0767c
+b       panic                                        # 07680
 b       major_0x07ac0_0x14c                          # 07684
 b       major_0x07ac0_0x100                          # 07688
 b       major_0x07ac0_0x24c                          # 0768c
@@ -10167,8 +10177,8 @@ b       major_0x07658_0x2b8                          # 07694
 b       major_0x07658_0x2c8                          # 07698
 b       major_0x07658_0x2d8                          # 0769c
 b       major_0x07658_0x2e8                          # 076a0
-b       dbgr                                         # 076a4
-b       dbgr                                         # 076a8
+b       panic                                        # 076a4
+b       panic                                        # 076a8
 b       major_0x07658_0x2fc                          # 076ac
 b       major_0x07980_0x100                          # 076b0
 
@@ -11359,7 +11369,7 @@ blr                                                  # 07e10
 
 /***********************************************************
 
-                       _dbgr_0x08620                        
+                   panic_wrapper_0x08620                    
 
 ************************************************************
 
@@ -11368,8 +11378,8 @@ major_0x08794
 
 ***********************************************************/
 
-_dbgr_0x08620:  /* < outside referer */
-b       dbgr                                         # 08620
+panic_wrapper_0x08620:  /* < outside referer */
+b       panic                                        # 08620
 
 
 
@@ -11561,7 +11571,7 @@ cmpwi    cr1,  r8,  0x00                             # 087e8
 li       r8,  0x00                                   # 087ec
 bne+     cr1, major_0x08794_0x68                     # 087f0
 mflr     r8                                          # 087f4
-bl      dbgr                                         # 087f8
+bl      panic                                        # 087f8
 
 major_0x08794_0x68:
 stw      r8, -0x0b90( r1)                            # 087fc
@@ -12734,9 +12744,9 @@ bgelr-   cr5                                         # 09a20
 lwzux    r8, r14,  r8                                # 09a24
 lwz      r9,  0x0004(r14)                            # 09a28
 mtcrf    0x80,  r8                                   # 09a2c
-bns+     cr7, _dbgr_0x08620                          # 09a30
+bns+     cr7, panic_wrapper_0x08620                  # 09a30
 bltlr-                                               # 09a34
-bl      _dbgr_0x08620                                # 09a38
+bl      panic_wrapper_0x08620                        # 09a38
 
 major_0x08794_0x12a8:
 lwz      r9,  0x06b4( r1)                            # 09a3c
@@ -12908,7 +12918,7 @@ mr      r14, r26                                     # 09c60
 mflr     r6                                          # 09c64
 slwi    r27,  r4, 12                                 # 09c68
 bl      major_0x04c20                                # 09c6c
-bnel+   _dbgr_0x08620                                # 09c70
+bnel+   panic_wrapper_0x08620                        # 09c70
 mr      r27,  r7                                     # 09c74
 mr      r29,  r8                                     # 09c78
 mr      r30,  r9                                     # 09c7c
@@ -12950,7 +12960,7 @@ b       major_0x08794_0x134c                         # 09c98
 
 /***********************************************************
 
-dbgr_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36
+panic_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36
 
 ************************************************************
 
@@ -12959,10 +12969,10 @@ setup
 
 ***********************************************************/
 
-dbgr_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36:  /* < outside referer */
+panic_offset_to_r1_minus_0x810_x48__0x9dfc_to_prev_plus_4_20_36:  /* < outside referer */
 mflr     r9                                          # 09ce0
-lis     r23,      dbgr@h                             # 09ce4
-ori     r23, r23, dbgr@l                             # 09ce8
+lis     r23,      panic@h                            # 09ce4
+ori     r23, r23, panic@l                            # 09ce8
 add     r23, r23, r25                                # 09cec
 addi     r8,  r1, -0x810                             # 09cf0
 li      r22,  0xc0                                   # 09cf4
@@ -12998,6 +13008,7 @@ blr                                                  # 09d18
 
 ************************************************************
 
+NB: I was probably wrong about this.
 Contains a (very rare) mtsprg0 instruction.
 
 ************************************************************
@@ -13695,7 +13706,7 @@ b       major_0x0a600_0x1c                           # 0a61c
 
 /***********************************************************
 
-                       _dbgr_0x0a620                        
+                   panic_wrapper_0x0a620                    
 
 ************************************************************
 
@@ -13704,8 +13715,8 @@ rtas_call
 
 ***********************************************************/
 
-_dbgr_0x0a620:  /* < outside referer */
-b       dbgr                                         # 0a620
+panic_wrapper_0x0a620:  /* < outside referer */
+b       panic                                        # 0a620
 
 
 
@@ -13823,7 +13834,7 @@ stw     r11,  0x00a4( r6)                            # 0a73c
 mr      r27,  r3                                     # 0a740
 addi    r29,  r1, 800 # kdp.0x320                    # 0a744
 bl      major_0x054b8                                # 0a748
-beql+   _dbgr_0x0a620                                # 0a74c
+beql+   panic_wrapper_0x0a620                        # 0a74c
 rlwimi   r3, r31,  0,  0, 19                         # 0a750
 lhz      r8,  0x0004( r3)                            # 0a754
 cmpwi    r8,  0x00                                   # 0a758
@@ -13832,7 +13843,7 @@ slwi     r8,  r8,  2                                 # 0a760
 lwzx    r27,  r8,  r3                                # 0a764
 addi    r29,  r1, 800 # kdp.0x320                    # 0a768
 bl      major_0x054b8                                # 0a76c
-beql+   _dbgr_0x0a620                                # 0a770
+beql+   panic_wrapper_0x0a620                        # 0a770
 lwzx     r9,  r8,  r3                                # 0a774
 rlwimi   r9, r31,  0,  0, 19                         # 0a778
 stwx     r9,  r8,  r3                                # 0a77c
@@ -13911,11 +13922,11 @@ sync                                                 # 0a88c
 lwz      r8, -0x0b10( r1) # kdp.rtas_lock            # 0a890
 cmpwi    cr1,  r8,  0x00                             # 0a894
 li       r8,  0x00                                   # 0a898
-bne+     cr1, rtas_lock_did_not_fail                 # 0a89c
+bne+     cr1, rtas_call_0x268                        # 0a89c
 mflr     r8                                          # 0a8a0
-bl      dbgr                                         # 0a8a4
+bl      panic                                        # 0a8a4
 
-rtas_lock_did_not_fail:
+rtas_call_0x268:
 stw      r8, -0x0b10( r1) # kdp.rtas_lock            # 0a8a8
 li       r3,  0x00                                   # 0a8ac
 b       skeleton_key                                 # 0a8b0
@@ -14503,7 +14514,7 @@ cmpwi    cr1, r16,  0x00                             # 0af1c
 li      r16,  0x00                                   # 0af20
 bne+     cr1, major_0x0af14_0x1c                     # 0af24
 mflr    r16                                          # 0af28
-bl      dbgr                                         # 0af2c
+bl      panic                                        # 0af2c
 
 major_0x0af14_0x1c:
 stw     r16, -0x0b50( r1)                            # 0af30
@@ -14617,7 +14628,7 @@ cmpwi    cr1, r16,  0x00                             # 0af40
 li      r16,  0x00                                   # 0af44
 bne+     cr1, syscall_return_assert_lock_unheld_0x1c # 0af48
 mflr    r16                                          # 0af4c
-bl      dbgr                                         # 0af50
+bl      panic                                        # 0af50
 
 syscall_return_assert_lock_unheld_0x1c:
 stw     r16, -0x0b50( r1) # kdp.sch_lock             # 0af54
@@ -14734,7 +14745,7 @@ cmpwi    cr1, r16,  0x00                             # 0af68
 li      r16,  0x00                                   # 0af6c
 bne+     cr1, major_0x0af60_0x1c                     # 0af70
 mflr    r16                                          # 0af74
-bl      dbgr                                         # 0af78
+bl      panic                                        # 0af78
 
 major_0x0af60_0x1c:
 stw     r16, -0x0b50( r1)                            # 0af7c
@@ -14765,7 +14776,7 @@ cmpwi    cr1, r16,  0x00                             # 0afbc
 li      r16,  0x00                                   # 0afc0
 bne+     cr1, major_0x0af60_0x70                     # 0afc4
 mflr    r16                                          # 0afc8
-bl      dbgr                                         # 0afcc
+bl      panic                                        # 0afcc
 
 major_0x0af60_0x70:
 stw     r16, -0x0b50( r1)                            # 0afd0
@@ -14779,7 +14790,7 @@ cmpwi    cr1, r16,  0x00                             # 0afe4
 li      r16,  0x00                                   # 0afe8
 bne+     cr1, major_0x0af60_0x98                     # 0afec
 mflr    r16                                          # 0aff0
-bl      dbgr                                         # 0aff4
+bl      panic                                        # 0aff4
 
 major_0x0af60_0x98:
 stw     r16, -0x0b50( r1)                            # 0aff8
@@ -14793,7 +14804,7 @@ cmpwi    cr1, r16,  0x00                             # 0b00c
 li      r16,  0x00                                   # 0b010
 bne+     cr1, major_0x0af60_0xc0                     # 0b014
 mflr    r16                                          # 0b018
-bl      dbgr                                         # 0b01c
+bl      panic                                        # 0b01c
 
 major_0x0af60_0xc0:
 stw     r16, -0x0b50( r1)                            # 0b020
@@ -14851,7 +14862,7 @@ cmpwi    cr1, r16,  0x00                             # 0b034
 li      r16,  0x00                                   # 0b038
 bne+     cr1, major_0x0b02c_0x1c                     # 0b03c
 mflr    r16                                          # 0b040
-bl      dbgr                                         # 0b044
+bl      panic                                        # 0b044
 
 major_0x0b02c_0x1c:
 stw     r16, -0x0b50( r1)                            # 0b048
@@ -14917,7 +14928,7 @@ cmpwi    cr1, r16,  0x00                             # 0b05c
 li      r16,  0x00                                   # 0b060
 bne+     cr1, major_0x0b054_0x1c                     # 0b064
 mflr    r16                                          # 0b068
-bl      dbgr                                         # 0b06c
+bl      panic                                        # 0b06c
 
 major_0x0b054_0x1c:
 stw     r16, -0x0b50( r1)                            # 0b070
@@ -15046,7 +15057,7 @@ cmpwi    cr1, r16,  0x00                             # 0b084
 li      r16,  0x00                                   # 0b088
 bne+     cr1, major_0x0b07c_0x1c                     # 0b08c
 mflr    r16                                          # 0b090
-bl      dbgr                                         # 0b094
+bl      panic                                        # 0b094
 
 major_0x0b07c_0x1c:
 stw     r16, -0x0b50( r1)                            # 0b098
@@ -15060,7 +15071,7 @@ cmpwi    cr1, r16,  0x00                             # 0b0ac
 li      r16,  0x00                                   # 0b0b0
 bne+     cr1, major_0x0b07c_0x44                     # 0b0b4
 mflr    r16                                          # 0b0b8
-bl      dbgr                                         # 0b0bc
+bl      panic                                        # 0b0bc
 
 major_0x0b07c_0x44:
 stw     r16, -0x0b50( r1)                            # 0b0c0
@@ -15116,7 +15127,7 @@ cmpwi    cr1, r16,  0x00                             # 0b0d4
 li      r16,  0x00                                   # 0b0d8
 bne+     cr1, major_0x0b0cc_0x1c                     # 0b0dc
 mflr    r16                                          # 0b0e0
-bl      dbgr                                         # 0b0e4
+bl      panic                                        # 0b0e4
 
 major_0x0b0cc_0x1c:
 stw     r16, -0x0b50( r1)                            # 0b0e8
@@ -15180,7 +15191,7 @@ cmpwi    cr1, r16,  0x00                             # 0b10c
 li      r16,  0x00                                   # 0b110
 bne+     cr1, major_0x0b0fc_0x24                     # 0b114
 mflr    r16                                          # 0b118
-bl      dbgr                                         # 0b11c
+bl      panic                                        # 0b11c
 
 major_0x0b0fc_0x24:
 stw     r16, -0x0b50( r1)                            # 0b120
@@ -15297,7 +15308,7 @@ cmpwi    cr1, r16,  0x00                             # 0b1bc
 li      r16,  0x00                                   # 0b1c0
 bne+     cr1, major_0x0b144_0x8c                     # 0b1c4
 mflr    r16                                          # 0b1c8
-bl      dbgr                                         # 0b1cc
+bl      panic                                        # 0b1cc
 
 major_0x0b144_0x8c:
 stw     r16, -0x0b90( r1)                            # 0b1d0
@@ -15322,7 +15333,7 @@ cmpwi    cr1, r16,  0x00                             # 0b200
 li      r16,  0x00                                   # 0b204
 bne+     cr1, major_0x0b144_0xd0                     # 0b208
 mflr    r16                                          # 0b20c
-bl      dbgr                                         # 0b210
+bl      panic                                        # 0b210
 
 major_0x0b144_0xd0:
 stw     r16, -0x0ad0( r1)                            # 0b214
@@ -15337,7 +15348,7 @@ cmpwi    cr1, r16,  0x00                             # 0b22c
 li      r16,  0x00                                   # 0b230
 bne+     cr1, major_0x0b144_0xfc                     # 0b234
 mflr    r16                                          # 0b238
-bl      dbgr                                         # 0b23c
+bl      panic                                        # 0b23c
 
 major_0x0b144_0xfc:
 stw     r16, -0x0b90( r1)                            # 0b240
@@ -15684,7 +15695,7 @@ cmpwi    cr1, r16,  0x00                             # 0b4f8
 li      r16,  0x00                                   # 0b4fc
 bne+     cr1, major_0x0b4a4_0x68                     # 0b500
 mflr    r16                                          # 0b504
-bl      dbgr                                         # 0b508
+bl      panic                                        # 0b508
 
 major_0x0b4a4_0x68:
 stw     r16, -0x0b50( r1)                            # 0b50c
@@ -15725,7 +15736,7 @@ cmpwi    cr1, r16,  0x00                             # 0b57c
 li      r16,  0x00                                   # 0b580
 bne+     cr1, major_0x0b4a4_0xec                     # 0b584
 mflr    r16                                          # 0b588
-bl      dbgr                                         # 0b58c
+bl      panic                                        # 0b58c
 
 major_0x0b4a4_0xec:
 stw     r16, -0x0b50( r1)                            # 0b590
@@ -15794,7 +15805,7 @@ cmpwi    cr1, r16,  0x00                             # 0b624
 li      r16,  0x00                                   # 0b628
 bne+     cr1, nk_yield_with_hint_0xa0                # 0b62c
 mflr    r16                                          # 0b630
-bl      dbgr                                         # 0b634
+bl      panic                                        # 0b634
 
 nk_yield_with_hint_0xa0:
 stw     r16, -0x0b50( r1)                            # 0b638
@@ -16563,7 +16574,7 @@ cmpwi    cr1, r16,  0x00                             # 0bc50
 li      r16,  0x00                                   # 0bc54
 bne+     cr1, major_0x0bc2c_0x38                     # 0bc58
 mflr    r16                                          # 0bc5c
-bl      dbgr                                         # 0bc60
+bl      panic                                        # 0bc60
 
 major_0x0bc2c_0x38:
 stw     r16, -0x0b50( r1)                            # 0bc64
@@ -16588,7 +16599,7 @@ bl      SIGP                                         # 0bca0
 cmpwi    r8, -0x7264                                 # 0bca4
 cmpwi    cr1,  r8,  0x00                             # 0bca8
 beq+    major_0x0bc2c_0x50                           # 0bcac
-bne-     cr1, _dbgr_0x0c5d4                          # 0bcb0
+bne-     cr1, panic_wrapper_0x0c5d4                  # 0bcb0
 mfspr   r15, 272/*sprg0*/                            # 0bcb4
 li      r16,  0x01                                   # 0bcb8
 stw     r16, -0x0238(r15)                            # 0bcbc
@@ -16630,7 +16641,7 @@ bl      SIGP                                         # 0bd08
 cmpwi    r8, -0x7264                                 # 0bd0c
 cmpwi    cr1,  r8,  0x00                             # 0bd10
 beq+    major_0x0bccc_0x14                           # 0bd14
-bne-     cr1, _dbgr_0x0c5d4                          # 0bd18
+bne-     cr1, panic_wrapper_0x0c5d4                  # 0bd18
 bl      1f                                           # 0bd1c
 .ascii  "Processor scheduled^n"                      # 0bd20
 .short  0                                            # 0bd35
@@ -16711,7 +16722,7 @@ cmpwi    cr1, r16,  0x00                             # 0bde0
 li      r16,  0x00                                   # 0bde4
 bne+     cr1, NKStopScheduling_0xb0                  # 0bde8
 mflr    r16                                          # 0bdec
-bl      dbgr                                         # 0bdf0
+bl      panic                                        # 0bdf0
 
 NKStopScheduling_0xb0:
 stw     r16, -0x0b50( r1)                            # 0bdf4
@@ -17508,7 +17519,7 @@ cmpwi    cr1, r16,  0x00                             # 0c428
 li      r16,  0x00                                   # 0c42c
 bne+     cr1, major_0x0c3ac_0x90                     # 0c430
 mflr    r16                                          # 0c434
-bl      dbgr                                         # 0c438
+bl      panic                                        # 0c438
 
 major_0x0c3ac_0x90:
 stw     r16, -0x0af0( r1)                            # 0c43c
@@ -17705,7 +17716,7 @@ b       syscall_return_assert_lock_unheld            # 0c5d0
 
 /***********************************************************
 
-                       _dbgr_0x0c5d4                        
+                   panic_wrapper_0x0c5d4                    
 
 ************************************************************
 
@@ -17715,8 +17726,8 @@ major_0x0bccc
 
 ***********************************************************/
 
-_dbgr_0x0c5d4:  /* < outside referer */
-b       dbgr                                         # 0c5d4
+panic_wrapper_0x0c5d4:  /* < outside referer */
+b       panic                                        # 0c5d4
 
 
 
@@ -19352,7 +19363,7 @@ cmpwi    r8,  0x00                                   # 0d450
 bne-    major_0x0d35c_0x108                          # 0d454
 subf.   r19,  r9, r19                                # 0d458
 bgt+    major_0x0d35c_0xf0                           # 0d45c
-bl      dbgr                                         # 0d460
+bl      panic                                        # 0d460
 
 major_0x0d35c_0x108:
 cmplw   r16, r19                                     # 0d464
@@ -19759,7 +19770,7 @@ cmpwi    cr1, r16,  0x00                             # 0d7e8
 li      r16,  0x00                                   # 0d7ec
 bne+     cr1, major_0x0d798_0x64                     # 0d7f0
 mflr    r16                                          # 0d7f4
-bl      dbgr                                         # 0d7f8
+bl      panic                                        # 0d7f8
 
 major_0x0d798_0x64:
 stw     r16, -0x0b50( r1)                            # 0d7fc
@@ -20177,7 +20188,7 @@ major_0x04240
 major_0x04300
 major_0x0dacc
 major_0x102c8
-major_0x154e0
+interrupt_blue
 
 ***********************************************************/
 
@@ -20942,7 +20953,7 @@ b       syscall_return_assert_lock_unheld            # 0e264
 
 /***********************************************************
 
-                       _dbgr_0x0e280                        
+                   panic_wrapper_0x0e280                    
 
 ************************************************************
 
@@ -20954,8 +20965,8 @@ major_0x0f050
 
 ***********************************************************/
 
-_dbgr_0x0e280:  /* < outside referer */
-b       dbgr                                         # 0e280
+panic_wrapper_0x0e280:  /* < outside referer */
+b       panic                                        # 0e280
 
 
 
@@ -21101,7 +21112,7 @@ li       r8,  0x214                                  # 0e3dc
 bl      boring                                       # 0e3e0
 andi.    r9,  r8,  0x0f                              # 0e3e4
 cmpwi    cr1,  r8,  0x00                             # 0e3e8
-bne+    _dbgr_0x0e280                                # 0e3ec
+bne+    panic_wrapper_0x0e280                        # 0e3ec
 beq-     cr1, mktask_0x1ec                           # 0e3f0
 stw      r8,  0x008c(r28)                            # 0e3f4
 stw      r8,  0x01d8(r28)                            # 0e3f8
@@ -21250,7 +21261,7 @@ bl      id_kind                                      # 0e584
 # r9 = 0:inval, 1:proc, 2:task, 3:timer, 4:q, 5:sema, 6:cr, 7:cpu, 8:addrspc, 9:evtg, 10:cohg, 11:area, 12:not, 13:log
 
 cmpwi    r9,  0x01                                   # 0e588
-bne+    _dbgr_0x0e280                                # 0e58c
+bne+    panic_wrapper_0x0e280                        # 0e58c
 lwz     r16,  0x0008( r8)                            # 0e590
 rlwinm. r17, r16,  0, 30, 30                         # 0e594
 bne+    major_0x0af60_0xa4                           # 0e598
@@ -21343,7 +21354,7 @@ cmpwi    cr1, r16,  0x00                             # 0e67c
 li      r16,  0x00                                   # 0e680
 bne+     cr1, major_0x0e604_0x8c                     # 0e684
 mflr    r16                                          # 0e688
-bl      dbgr                                         # 0e68c
+bl      panic                                        # 0e68c
 
 major_0x0e604_0x8c:
 stw     r16, -0x0b50( r1)                            # 0e690
@@ -21781,7 +21792,7 @@ cmpwi    cr1, r16,  0x00                             # 0ea38
 li      r16,  0x00                                   # 0ea3c
 bne+     cr1, NKThrowException_0xf0                  # 0ea40
 mflr    r16                                          # 0ea44
-bl      dbgr                                         # 0ea48
+bl      panic                                        # 0ea48
 
 NKThrowException_0xf0:
 stw     r16, -0x0b50( r1)                            # 0ea4c
@@ -22161,7 +22172,7 @@ cmplwi   cr3, r16,  0x00                             # 0edec
 cmplwi   r5,  0x200                                  # 0edf0
 cmplwi   cr2,  r5,  0x210                            # 0edf4
 cmplwi   cr1,  r5,  0x1f0                            # 0edf8
-beql+    cr3, _dbgr_0x0e280                          # 0edfc
+beql+    cr3, panic_wrapper_0x0e280                  # 0edfc
 beq-    major_0x0ec8c_0x1a4                          # 0ee00
 beq-     cr2, major_0x0ec8c_0x1b8                    # 0ee04
 andi.    r8,  r5,  0x0f                              # 0ee08
@@ -22476,7 +22487,7 @@ cmplwi   cr3, r16,  0x00                             # 0f148
 cmplwi   r5,  0x200                                  # 0f14c
 cmplwi   cr2,  r5,  0x210                            # 0f150
 cmplwi   cr1,  r5,  0x1f0                            # 0f154
-beql+    cr3, _dbgr_0x0e280                          # 0f158
+beql+    cr3, panic_wrapper_0x0e280                  # 0f158
 beq-    major_0x0f050_0x144                          # 0f15c
 beq-     cr2, major_0x0f050_0x160                    # 0f160
 andi.    r8,  r5,  0x0f                              # 0f164
@@ -22750,7 +22761,7 @@ b       syscall_return_assert_lock_unheld            # 0f37c
 
 /***********************************************************
 
-                       _dbgr_0x0f380                        
+                   panic_wrapper_0x0f380                    
 
 ************************************************************
 
@@ -22773,8 +22784,8 @@ major_0x12248
 
 ***********************************************************/
 
-_dbgr_0x0f380:  /* < outside referer */
-b       dbgr                                         # 0f380
+panic_wrapper_0x0f380:  /* < outside referer */
+b       panic                                        # 0f380
 
 
 
@@ -22867,7 +22878,7 @@ li       r8, 160                                     # 0f454
 # r1 = kdp
 bl      boring                                       # 0f458
 mr.     r31,  r8                                     # 0f45c
-beq+    _dbgr_0x0f380                                # 0f460
+beq+    panic_wrapper_0x0f380                        # 0f460
 lwz      r8, -0x001c( r1)                            # 0f464
 stw      r8,  0x006c(r31)                            # 0f468
 lis     r15,       0x68f1                            # 0f46c
@@ -22896,7 +22907,7 @@ li       r8, 160                                     # 0f4b8
 # r1 = kdp
 bl      boring                                       # 0f4bc
 mr.     r31,  r8                                     # 0f4c0
-beq+    _dbgr_0x0f380                                # 0f4c4
+beq+    panic_wrapper_0x0f380                        # 0f4c4
 lwz      r8, -0x001c( r1)                            # 0f4c8
 stw      r8,  0x006c(r31)                            # 0f4cc
 lis     r15,      -0x2153                            # 0f4d0
@@ -22932,7 +22943,7 @@ cmpwi    r8,  0x00                                   # 0f534
 beq-    convert_pmdts_to_areas_0x198                 # 0f538
 bl      createarea                                   # 0f53c
 cmpwi    r9,  0x00                                   # 0f540
-bne+    _dbgr_0x0f380                                # 0f544
+bne+    panic_wrapper_0x0f380                        # 0f544
 li       r8,  0x00                                   # 0f548
 stw      r8, -0x026c( r1)                            # 0f54c
 
@@ -22942,7 +22953,7 @@ li       r8, 160                                     # 0f550
 # r1 = kdp
 bl      boring                                       # 0f554
 mr.     r31,  r8                                     # 0f558
-beq+    _dbgr_0x0f380                                # 0f55c
+beq+    panic_wrapper_0x0f380                        # 0f55c
 lwz     r17,  0x0004(r25)                            # 0f560
 lhz     r15,  0x0000(r25)                            # 0f564
 lhz     r16,  0x0002(r25)                            # 0f568
@@ -22993,12 +23004,12 @@ subf.   r16, r15, r16                                # 0f608
 stw     r17, -0x0270( r1)                            # 0f60c
 stw     r16,  0x002c(r31)                            # 0f610
 beq-    convert_pmdts_to_areas_0x2b0                 # 0f614
-bltl+   _dbgr_0x0f380                                # 0f618
+bltl+   panic_wrapper_0x0f380                        # 0f618
 mr       r8, r31                                     # 0f61c
 bl      createarea                                   # 0f620
 cmpwi    r9,  0x00                                   # 0f624
 mr      r30,  r8                                     # 0f628
-bnel+   _dbgr_0x0f380                                # 0f62c
+bnel+   panic_wrapper_0x0f380                        # 0f62c
 lwz     r15,  0x0028(r24)                            # 0f630
 lwz     r16, -0x0270( r1)                            # 0f634
 subf.   r16, r15, r16                                # 0f638
@@ -23008,7 +23019,7 @@ li       r8, 160                                     # 0f640
 # r1 = kdp
 bl      boring                                       # 0f644
 mr.     r31,  r8                                     # 0f648
-beq+    _dbgr_0x0f380                                # 0f64c
+beq+    panic_wrapper_0x0f380                        # 0f64c
 li       r8,  0x9c                                   # 0f650
 
 convert_pmdts_to_areas_0x29c:
@@ -23024,7 +23035,7 @@ lwz     r15,  0x0028(r24)                            # 0f66c
 lwz     r16, -0x0270( r1)                            # 0f670
 subf.   r16, r15, r16                                # 0f674
 addi    r15, r15,  0x01                              # 0f678
-blel+   _dbgr_0x0f380                                # 0f67c
+blel+   panic_wrapper_0x0f380                        # 0f67c
 stw     r16,  0x002c(r31)                            # 0f680
 stw     r15,  0x0024(r31)                            # 0f684
 subf     r9,  r9, r15                                # 0f688
@@ -23039,7 +23050,7 @@ li       r8, 160                                     # 0f69c
 # r1 = kdp
 bl      boring                                       # 0f6a0
 mr.     r31,  r8                                     # 0f6a4
-beq+    _dbgr_0x0f380                                # 0f6a8
+beq+    panic_wrapper_0x0f380                        # 0f6a8
 lwz     r17,  0x0004(r25)                            # 0f6ac
 lhz     r15,  0x0000(r25)                            # 0f6b0
 lhz     r16,  0x0002(r25)                            # 0f6b4
@@ -23105,7 +23116,7 @@ stw      r8,  0x0008(r31)                            # 0f788
 mr       r8, r31                                     # 0f78c
 bl      createarea                                   # 0f790
 cmpwi    r9,  0x00                                   # 0f794
-bne+    _dbgr_0x0f380                                # 0f798
+bne+    panic_wrapper_0x0f380                        # 0f798
 b       convert_pmdts_to_areas_0x5c                  # 0f79c
 
 
@@ -23205,7 +23216,7 @@ cmpwi    cr1, r16,  0x00                             # 0f7f8
 li      r16,  0x00                                   # 0f7fc
 bne+     cr1, major_0x0f7b8_0x54                     # 0f800
 mflr    r16                                          # 0f804
-bl      dbgr                                         # 0f808
+bl      panic                                        # 0f808
 
 major_0x0f7b8_0x54:
 stw     r16, -0x0b50( r1)                            # 0f80c
@@ -23620,7 +23631,7 @@ cmpwi    cr1, r16,  0x00                             # 0fbb0
 li      r16,  0x00                                   # 0fbb4
 bne+     cr1, major_0x0fb34_0x90                     # 0fbb8
 mflr    r16                                          # 0fbbc
-bl      dbgr                                         # 0fbc0
+bl      panic                                        # 0fbc0
 
 major_0x0fb34_0x90:
 stw     r16, -0x0b50( r1)                            # 0fbc4
@@ -24113,7 +24124,7 @@ cmpwi    cr1, r16,  0x00                             # 10220
 li      r16,  0x00                                   # 10224
 bne+     cr1, createarea_0x648                       # 10228
 mflr    r16                                          # 1022c
-bl      dbgr                                         # 10230
+bl      panic                                        # 10230
 
 createarea_0x648:
 stw     r16, -0x0ad0( r1)                            # 10234
@@ -24212,7 +24223,7 @@ cmpwi    cr1, r16,  0x00                             # 102d0
 li      r16,  0x00                                   # 102d4
 bne+     cr1, major_0x102c8_0x1c                     # 102d8
 mflr    r16                                          # 102dc
-bl      dbgr                                         # 102e0
+bl      panic                                        # 102e0
 
 major_0x102c8_0x1c:
 stw     r16, -0x0ad0( r1)                            # 102e4
@@ -24402,7 +24413,7 @@ cmpwi    cr1, r16,  0x00                             # 104b0
 li      r16,  0x00                                   # 104b4
 bne+     cr1, major_0x10414_0xb0                     # 104b8
 mflr    r16                                          # 104bc
-bl      dbgr                                         # 104c0
+bl      panic                                        # 104c0
 
 major_0x10414_0xb0:
 stw     r16, -0x0b50( r1)                            # 104c4
@@ -24502,7 +24513,7 @@ cmpwi    cr1, r18,  0x00                             # 105b0
 li      r18,  0x00                                   # 105b4
 bne+     cr1, major_0x104ec_0xd8                     # 105b8
 mflr    r18                                          # 105bc
-bl      dbgr                                         # 105c0
+bl      panic                                        # 105c0
 
 major_0x104ec_0xd8:
 stw     r18, -0x0b90( r1)                            # 105c4
@@ -24552,7 +24563,7 @@ cmpwi    cr1, r18,  0x00                             # 10644
 li      r18,  0x00                                   # 10648
 bne+     cr1, major_0x104ec_0x16c                    # 1064c
 mflr    r18                                          # 10650
-bl      dbgr                                         # 10654
+bl      panic                                        # 10654
 
 major_0x104ec_0x16c:
 stw     r18, -0x0ad0( r1)                            # 10658
@@ -24606,7 +24617,7 @@ cmpwi    cr1, r18,  0x00                             # 106d8
 li      r18,  0x00                                   # 106dc
 bne+     cr1, major_0x104ec_0x200                    # 106e0
 mflr    r18                                          # 106e4
-bl      dbgr                                         # 106e8
+bl      panic                                        # 106e8
 
 major_0x104ec_0x200:
 stw     r18, -0x0ad0( r1)                            # 106ec
@@ -24707,7 +24718,7 @@ lwz     r27,  0x0068(r31)                            # 107b8
 major_0x1070c_0xb0:
 mr       r8, r28                                     # 107bc
 bl      major_0x12248_0x1e4                          # 107c0
-beq+    _dbgr_0x0f380                                # 107c4
+beq+    panic_wrapper_0x0f380                        # 107c4
 bl      major_0x12248_0x2b0                          # 107c8
 bns-     cr7, major_0x1070c_0xe0                     # 107cc
 bltl-    cr5, major_0x12248_0x2e0                    # 107d0
@@ -24734,11 +24745,11 @@ add     r29, r29, r27                                # 10808
 major_0x1070c_0x100:
 mr       r8, r28                                     # 1080c
 bl      major_0x12248_0x1e4                          # 10810
-beq+    _dbgr_0x0f380                                # 10814
+beq+    panic_wrapper_0x0f380                        # 10814
 mr      r26, r30                                     # 10818
 mr       r8, r29                                     # 1081c
 bl      major_0x12248_0x1e4                          # 10820
-beq+    _dbgr_0x0f380                                # 10824
+beq+    panic_wrapper_0x0f380                        # 10824
 lwz     r17,  0x0000(r30)                            # 10828
 stw     r17,  0x0000(r26)                            # 1082c
 lwz     r16,  0x0028(r31)                            # 10830
@@ -24754,7 +24765,7 @@ cmpwi    cr1,  r8,  0x00                             # 1084c
 li       r8,  0x00                                   # 10850
 bne+     cr1, major_0x1070c_0x154                    # 10854
 mflr     r8                                          # 10858
-bl      dbgr                                         # 1085c
+bl      panic                                        # 1085c
 
 major_0x1070c_0x154:
 stw      r8, -0x0b90( r1)                            # 10860
@@ -24771,7 +24782,7 @@ cmpwi    cr1,  r8,  0x00                             # 10880
 li       r8,  0x00                                   # 10884
 bne+     cr1, major_0x1070c_0x188                    # 10888
 mflr     r8                                          # 1088c
-bl      dbgr                                         # 10890
+bl      panic                                        # 10890
 
 major_0x1070c_0x188:
 stw      r8, -0x0ad0( r1)                            # 10894
@@ -24890,11 +24901,11 @@ cmpwi    cr1, r14,  0x00                             # 109b4
 li      r14,  0x00                                   # 109b8
 bne+     cr1, major_0x108fc_0xcc                     # 109bc
 mflr    r14                                          # 109c0
-bl      dbgr                                         # 109c4
+bl      panic                                        # 109c4
 
 major_0x108fc_0xcc:
 stw     r14, -0x0b90( r1)                            # 109c8
-beq+    _dbgr_0x0f380                                # 109cc
+beq+    panic_wrapper_0x0f380                        # 109cc
 rlwinm   r8, r16,  0, 29, 30                         # 109d0
 lwz     r16,  0x0000(r30)                            # 109d4
 cmpwi    cr7,  r8,  0x04                             # 109d8
@@ -24952,7 +24963,7 @@ mr       r8, r14                                     # 10a74
 mr       r9, r15                                     # 10a78
 mr       r8, r29                                     # 10a7c
 bl      major_0x12248_0x1e4                          # 10a80
-beq+    _dbgr_0x0f380                                # 10a84
+beq+    panic_wrapper_0x0f380                        # 10a84
 bl      major_0x12248_0x2b0                          # 10a88
 bns-     cr7, major_0x108fc_0x19c                    # 10a8c
 bltl-    cr5, major_0x12248_0x2e0                    # 10a90
@@ -24969,7 +24980,7 @@ cmpwi    cr1, r14,  0x00                             # 10ab0
 li      r14,  0x00                                   # 10ab4
 bne+     cr1, major_0x108fc_0x1c8                    # 10ab8
 mflr    r14                                          # 10abc
-bl      dbgr                                         # 10ac0
+bl      panic                                        # 10ac0
 
 major_0x108fc_0x1c8:
 stw     r14, -0x0b90( r1)                            # 10ac4
@@ -25047,7 +25058,7 @@ mr       r9, r15                                     # 10b64
 NKSetAreaAccess_0x9c:
 mr       r8, r29                                     # 10b68
 bl      major_0x12248_0x1e4                          # 10b6c
-beq+    _dbgr_0x0f380                                # 10b70
+beq+    panic_wrapper_0x0f380                        # 10b70
 bl      major_0x12248_0x2b0                          # 10b74
 bns-     cr7, NKSetAreaAccess_0xb8                   # 10b78
 bltl-    cr5, major_0x12248_0x2e0                    # 10b7c
@@ -25096,7 +25107,7 @@ cmpwi    cr1, r14,  0x00                             # 10c04
 li      r14,  0x00                                   # 10c08
 bne+     cr1, NKSetAreaAccess_0x14c                  # 10c0c
 mflr    r14                                          # 10c10
-bl      dbgr                                         # 10c14
+bl      panic                                        # 10c14
 
 NKSetAreaAccess_0x14c:
 stw     r14, -0x0b90( r1)                            # 10c18
@@ -25146,7 +25157,7 @@ cmpwi    cr1, r14,  0x00                             # 10c9c
 li      r14,  0x00                                   # 10ca0
 bne+     cr1, NKSetAreaAccess_0x1e4                  # 10ca4
 mflr    r14                                          # 10ca8
-bl      dbgr                                         # 10cac
+bl      panic                                        # 10cac
 
 NKSetAreaAccess_0x1e4:
 stw     r14, -0x0b90( r1)                            # 10cb0
@@ -25359,7 +25370,7 @@ mr       r8, r14                                     # 10e44
 mr       r9, r15                                     # 10e48
 mr       r8,  r4                                     # 10e4c
 bl      major_0x12248_0x1e4                          # 10e50
-beq+    _dbgr_0x0f380                                # 10e54
+beq+    panic_wrapper_0x0f380                        # 10e54
 bl      major_0x12248_0x2b0                          # 10e58
 bltl-    cr5, major_0x12248_0x2e0                    # 10e5c
 bltl-    cr5, major_0x12248_0x348                    # 10e60
@@ -25370,7 +25381,7 @@ cmpwi    cr1, r14,  0x00                             # 10e70
 li      r14,  0x00                                   # 10e74
 bne+     cr1, major_0x10de0_0xa4                     # 10e78
 mflr    r14                                          # 10e7c
-bl      dbgr                                         # 10e80
+bl      panic                                        # 10e80
 
 major_0x10de0_0xa4:
 stw     r14, -0x0b90( r1)                            # 10e84
@@ -25792,7 +25803,7 @@ cmpwi    cr1,  r8,  0x00                             # 111b0
 li       r8,  0x00                                   # 111b4
 bne+     cr1, major_0x11104_0xc0                     # 111b8
 mflr     r8                                          # 111bc
-bl      dbgr                                         # 111c0
+bl      panic                                        # 111c0
 
 major_0x11104_0xc0:
 stw      r8, -0x0b90( r1)                            # 111c4
@@ -25875,7 +25886,7 @@ mr       r9, r15                                     # 1126c
 mr       r8,  r4                                     # 11270
 mr      r28,  r4                                     # 11274
 bl      major_0x12248_0x1e4                          # 11278
-beq+    _dbgr_0x0f380                                # 1127c
+beq+    panic_wrapper_0x0f380                        # 1127c
 bl      major_0x12248_0x2b0                          # 11280
 crclr   4*cr3 + eq                                   # 11284
 li       r3,  0x00                                   # 11288
@@ -25896,7 +25907,7 @@ cmplw    cr2, r28,  r5                               # 112b0
 bgt-     cr2, major_0x111d4_0x140                    # 112b4
 mr       r8, r28                                     # 112b8
 bl      major_0x12248_0x1e4                          # 112bc
-beq+    _dbgr_0x0f380                                # 112c0
+beq+    panic_wrapper_0x0f380                        # 112c0
 bl      major_0x12248_0x2b0                          # 112c4
 rlwinm  r17, r17,  0,  0, 19                         # 112c8
 crxor   r31, r31, r14                                # 112cc
@@ -25918,7 +25929,7 @@ cmpwi    cr1,  r8,  0x00                             # 112f8
 li       r8,  0x00                                   # 112fc
 bne+     cr1, major_0x111d4_0x138                    # 11300
 mflr     r8                                          # 11304
-bl      dbgr                                         # 11308
+bl      panic                                        # 11308
 
 major_0x111d4_0x138:
 stw      r8, -0x0b90( r1)                            # 1130c
@@ -25929,7 +25940,7 @@ addi     r5,  r5,  0x01                              # 11314
 beq-     cr3, major_0x111d4_0x170                    # 11318
 mr       r8, r28                                     # 1131c
 bl      major_0x12248_0x1e4                          # 11320
-beq+    _dbgr_0x0f380                                # 11324
+beq+    panic_wrapper_0x0f380                        # 11324
 bl      major_0x12248_0x2b0                          # 11328
 rlwinm  r17, r17,  0,  0, 19                         # 1132c
 bns-     cr7, major_0x111d4_0x170                    # 11330
@@ -26026,7 +26037,7 @@ cmpwi    cr1, r16,  0x00                             # 113c0
 li      r16,  0x00                                   # 113c4
 bne+     cr1, major_0x1139c_0x38                     # 113c8
 mflr    r16                                          # 113cc
-bl      dbgr                                         # 113d0
+bl      panic                                        # 113d0
 
 major_0x1139c_0x38:
 stw     r16, -0x0ad0( r1)                            # 113d4
@@ -26085,7 +26096,7 @@ lwz     r17,  0x0004( r8)                            # 11464
 mfspr   r16, 22/*dec*/                               # 11468
 eqv.    r17, r18, r17                                # 1146c
 stw     r16,  0x0000( r8)                            # 11470
-bne+    _dbgr_0x0f380                                # 11474
+bne+    panic_wrapper_0x0f380                        # 11474
 stw     r16,  0x0004( r8)                            # 11478
 stw     r16,  0x0008( r8)                            # 1147c
 stw     r16,  0x000c( r8)                            # 11480
@@ -26146,7 +26157,7 @@ cmpwi    cr1, r16,  0x00                             # 114e0
 li      r16,  0x00                                   # 114e4
 bne+     cr1, major_0x11490_0x64                     # 114e8
 mflr    r16                                          # 114ec
-bl      dbgr                                         # 114f0
+bl      panic                                        # 114f0
 
 major_0x11490_0x64:
 stw     r16, -0x0ad0( r1)                            # 114f4
@@ -26177,7 +26188,7 @@ NKUnmapPages
 free_list_add_page:  /* < outside referer */
 clrlwi.  r9,  r8,  0x14                              # 114fc
 addi     r9,  r1, -0x450 # kdp.-0x450                # 11500
-bne+    _dbgr_0x0f380                                # 11504
+bne+    panic_wrapper_0x0f380                        # 11504
 stw      r9,  0x0000( r8)                            # 11508
 stw      r9,  0x0008( r8)                            # 1150c
 lwz     r16,  0x000c( r9)                            # 11510
@@ -26307,7 +26318,7 @@ mr       r8, r14                                     # 115e4
 mr       r9, r15                                     # 115e8
 mr       r8,  r4                                     # 115ec
 bl      major_0x12248_0x1e4                          # 115f0
-beq+    _dbgr_0x0f380                                # 115f4
+beq+    panic_wrapper_0x0f380                        # 115f4
 lwz     r29,  0x0000(r30)                            # 115f8
 sync                                                 # 115fc
 lwz     r14, -0x0b90( r1)                            # 11600
@@ -26315,7 +26326,7 @@ cmpwi    cr1, r14,  0x00                             # 11604
 li      r14,  0x00                                   # 11608
 bne+     cr1, NKMapPage_0xd0                         # 1160c
 mflr    r14                                          # 11610
-bl      dbgr                                         # 11614
+bl      panic                                        # 11614
 
 NKMapPage_0xd0:
 stw     r14, -0x0b90( r1)                            # 11618
@@ -26339,7 +26350,7 @@ cmpwi    cr1, r16,  0x00                             # 11654
 li      r16,  0x00                                   # 11658
 bne+     cr1, NKMapPage_0x120                        # 1165c
 mflr    r16                                          # 11660
-bl      dbgr                                         # 11664
+bl      panic                                        # 11664
 
 NKMapPage_0x120:
 stw     r16, -0x0ad0( r1)                            # 11668
@@ -26504,7 +26515,7 @@ lwz     r28,  0x0038(r31)                            # 11804
 NKUnmapPages_0x110:
 mr       r8,  r4                                     # 11808
 bl      major_0x12248_0x1e4                          # 1180c
-beq+    _dbgr_0x0f380                                # 11810
+beq+    panic_wrapper_0x0f380                        # 11810
 bl      major_0x12248_0x2b0                          # 11814
 bns-     cr7, NKUnmapPages_0x148                     # 11818
 bltl-    cr5, major_0x12248_0x2e0                    # 1181c
@@ -26533,7 +26544,7 @@ cmpwi    cr1, r14,  0x00                             # 11858
 li      r14,  0x00                                   # 1185c
 bne+     cr1, NKUnmapPages_0x174                     # 11860
 mflr    r14                                          # 11864
-bl      dbgr                                         # 11868
+bl      panic                                        # 11868
 
 NKUnmapPages_0x174:
 stw     r14, -0x0b90( r1)                            # 1186c
@@ -26546,7 +26557,7 @@ cmpwi    cr1, r14,  0x00                             # 1187c
 li      r14,  0x00                                   # 11880
 bne+     cr1, NKUnmapPages_0x198                     # 11884
 mflr    r14                                          # 11888
-bl      dbgr                                         # 1188c
+bl      panic                                        # 1188c
 
 NKUnmapPages_0x198:
 stw     r14, -0x0ad0( r1)                            # 11890
@@ -26617,7 +26628,7 @@ li      r28, -0x01                                   # 11914
 NKMakePhysicallyContiguous_0x80:
 mr       r8, r27                                     # 11918
 bl      major_0x12248_0x1e4                          # 1191c
-beq+    _dbgr_0x0f380                                # 11920
+beq+    panic_wrapper_0x0f380                        # 11920
 bl      major_0x12248_0x2b0                          # 11924
 bns-     cr7, NKMakePhysicallyContiguous_0x150       # 11928
 rlwinm   r8, r17,  0,  0, 19                         # 1192c
@@ -26638,7 +26649,7 @@ cmpwi    cr1, r14,  0x00                             # 1195c
 li      r14,  0x00                                   # 11960
 bne+     cr1, NKMakePhysicallyContiguous_0xd8        # 11964
 mflr    r14                                          # 11968
-bl      dbgr                                         # 1196c
+bl      panic                                        # 1196c
 
 NKMakePhysicallyContiguous_0xd8:
 stw     r14, -0x0b90( r1)                            # 11970
@@ -26653,7 +26664,7 @@ cmpwi    cr1, r14,  0x00                             # 11980
 li      r14,  0x00                                   # 11984
 bne+     cr1, NKMakePhysicallyContiguous_0xfc        # 11988
 mflr    r14                                          # 1198c
-bl      dbgr                                         # 11990
+bl      panic                                        # 11990
 
 NKMakePhysicallyContiguous_0xfc:
 stw     r14, -0x0b90( r1)                            # 11994
@@ -26687,7 +26698,7 @@ cmpwi    cr1, r16,  0x00                             # 119f0
 li      r16,  0x00                                   # 119f4
 bne+     cr1, NKMakePhysicallyContiguous_0x16c       # 119f8
 mflr    r16                                          # 119fc
-bl      dbgr                                         # 11a00
+bl      panic                                        # 11a00
 
 NKMakePhysicallyContiguous_0x16c:
 stw     r16, -0x0b90( r1)                            # 11a04
@@ -26700,7 +26711,7 @@ cmpwi    cr1, r16,  0x00                             # 11a14
 li      r16,  0x00                                   # 11a18
 bne+     cr1, NKMakePhysicallyContiguous_0x190       # 11a1c
 mflr    r16                                          # 11a20
-bl      dbgr                                         # 11a24
+bl      panic                                        # 11a24
 
 NKMakePhysicallyContiguous_0x190:
 stw     r16, -0x0ad0( r1)                            # 11a28
@@ -26795,7 +26806,7 @@ cmpwi    cr1, r16,  0x00                             # 11b00
 li      r16,  0x00                                   # 11b04
 bne+     cr1, NKLockPages_0xe4                       # 11b08
 mflr    r16                                          # 11b0c
-bl      dbgr                                         # 11b10
+bl      panic                                        # 11b10
 
 NKLockPages_0xe4:
 stw     r16, -0x0ad0( r1)                            # 11b14
@@ -26805,7 +26816,7 @@ mr      r27,  r4                                     # 11b1c
 NKLockPages_0xf0:
 mr       r8, r27                                     # 11b20
 bl      major_0x12248_0x254                          # 11b24
-beq+    _dbgr_0x0f380                                # 11b28
+beq+    panic_wrapper_0x0f380                        # 11b28
 lhz     r18,  0x0000(r30)                            # 11b2c
 rlwinm. r17, r18,  0, 16, 16                         # 11b30
 bne-    NKLockPages_0x10c                            # 11b34
@@ -26924,7 +26935,7 @@ cmpwi    cr1, r16,  0x00                             # 11c5c
 li      r16,  0x00                                   # 11c60
 bne+     cr1, NKUnlockPages_0x114                    # 11c64
 mflr    r16                                          # 11c68
-bl      dbgr                                         # 11c6c
+bl      panic                                        # 11c6c
 
 NKUnlockPages_0x114:
 stw     r16, -0x0ad0( r1)                            # 11c70
@@ -27023,7 +27034,7 @@ cmpwi    cr1, r16,  0x00                             # 11d44
 li      r16,  0x00                                   # 11d48
 bne+     cr1, NKHoldPages_0xe0                       # 11d4c
 mflr    r16                                          # 11d50
-bl      dbgr                                         # 11d54
+bl      panic                                        # 11d54
 
 NKHoldPages_0xe0:
 stw     r16, -0x0ad0( r1)                            # 11d58
@@ -27033,7 +27044,7 @@ mr      r27,  r4                                     # 11d60
 NKHoldPages_0xec:
 mr       r8, r27                                     # 11d64
 bl      major_0x12248_0x254                          # 11d68
-beq+    _dbgr_0x0f380                                # 11d6c
+beq+    panic_wrapper_0x0f380                        # 11d6c
 lhz     r18,  0x0000(r30)                            # 11d70
 rlwinm. r17, r18,  0, 16, 16                         # 11d74
 bne-    NKHoldPages_0x108                            # 11d78
@@ -27152,7 +27163,7 @@ cmpwi    cr1, r16,  0x00                             # 11ea0
 li      r16,  0x00                                   # 11ea4
 bne+     cr1, NKUnholdPages_0x114                    # 11ea8
 mflr    r16                                          # 11eac
-bl      dbgr                                         # 11eb0
+bl      panic                                        # 11eb0
 
 NKUnholdPages_0x114:
 stw     r16, -0x0ad0( r1)                            # 11eb4
@@ -27223,7 +27234,7 @@ cmpwi    cr1, r14,  0x00                             # 11f3c
 li      r14,  0x00                                   # 11f40
 bne+     cr1, major_0x11ebc_0x94                     # 11f44
 mflr    r14                                          # 11f48
-bl      dbgr                                         # 11f4c
+bl      panic                                        # 11f4c
 
 major_0x11ebc_0x94:
 stw     r14, -0x0b90( r1)                            # 11f50
@@ -27256,7 +27267,7 @@ cmpwi    cr1, r14,  0x00                             # 11f90
 li      r14,  0x00                                   # 11f94
 bne+     cr1, major_0x11ebc_0xe8                     # 11f98
 mflr    r14                                          # 11f9c
-bl      dbgr                                         # 11fa0
+bl      panic                                        # 11fa0
 
 major_0x11ebc_0xe8:
 stw     r14, -0x0b90( r1)                            # 11fa4
@@ -27342,7 +27353,7 @@ cmpwi    cr1, r14,  0x00                             # 12068
 li      r14,  0x00                                   # 1206c
 bne+     cr1, major_0x11fac_0xd0                     # 12070
 mflr    r14                                          # 12074
-bl      dbgr                                         # 12078
+bl      panic                                        # 12078
 
 major_0x11fac_0xd0:
 stw     r14, -0x0b90( r1)                            # 1207c
@@ -27357,7 +27368,7 @@ cmpwi    cr1, r14,  0x00                             # 1208c
 li      r14,  0x00                                   # 12090
 bne+     cr1, major_0x11fac_0xf4                     # 12094
 mflr    r14                                          # 12098
-bl      dbgr                                         # 1209c
+bl      panic                                        # 1209c
 
 major_0x11fac_0xf4:
 stw     r14, -0x0b90( r1)                            # 120a0
@@ -27481,7 +27492,7 @@ mr       r8, r16                                     # 1218c
 mr       r9, r17                                     # 12190
 mr       r8,  r4                                     # 12194
 bl      major_0x12248_0x1e4                          # 12198
-beq+    _dbgr_0x0f380                                # 1219c
+beq+    panic_wrapper_0x0f380                        # 1219c
 bl      major_0x12248_0x2b0                          # 121a0
 bns-     cr7, major_0x12110_0xa0                     # 121a4
 bltl-    cr5, major_0x12248_0x2e0                    # 121a8
@@ -27494,7 +27505,7 @@ cmpwi    cr1, r16,  0x00                             # 121b8
 li      r16,  0x00                                   # 121bc
 bne+     cr1, major_0x12110_0xbc                     # 121c0
 mflr    r16                                          # 121c4
-bl      dbgr                                         # 121c8
+bl      panic                                        # 121c8
 
 major_0x12110_0xbc:
 stw     r16, -0x0b90( r1)                            # 121cc
@@ -27679,14 +27690,14 @@ mr       r8, r16                                     # 1234c
 mr       r9, r17                                     # 12350
 mr       r8, r29                                     # 12354
 bl      major_0x12248_0x1e4                          # 12358
-beq+    _dbgr_0x0f380                                # 1235c
+beq+    panic_wrapper_0x0f380                        # 1235c
 sync                                                 # 12360
 lwz     r16, -0x0b90( r1)                            # 12364
 cmpwi    cr1, r16,  0x00                             # 12368
 li      r16,  0x00                                   # 1236c
 bne+     cr1, major_0x12248_0x134                    # 12370
 mflr    r16                                          # 12374
-bl      dbgr                                         # 12378
+bl      panic                                        # 12378
 
 major_0x12248_0x134:
 stw     r16, -0x0b90( r1)                            # 1237c
@@ -27816,7 +27827,7 @@ bgelr-   cr5                                         # 12510
 lwzux   r16, r18, r16                                # 12514
 lwz     r17,  0x0004(r18)                            # 12518
 mtcrf    0x80, r16                                   # 1251c
-bge+    _dbgr_0x0f380                                # 12520
+bge+    panic_wrapper_0x0f380                        # 12520
 blr                                                  # 12524
 
 major_0x12248_0x2e0:  /* < outside referer */
@@ -28008,7 +28019,7 @@ blr                                                  # 12774
 
 /***********************************************************
 
-                       _dbgr_0x12780                        
+                   panic_wrapper_0x12780                    
 
 ************************************************************
 
@@ -28019,8 +28030,8 @@ major_0x12a34
 
 ***********************************************************/
 
-_dbgr_0x12780:  /* < outside referer */
-b       dbgr                                         # 12780
+panic_wrapper_0x12780:  /* < outside referer */
+b       panic                                        # 12780
 
 
 
@@ -28140,7 +28151,7 @@ stw      r8, -0x005c(r18)                            # 1284c
 boring_0x34:
 cmpwi    r8,  0x00                                   # 12850
 cmpwi    cr1,  r8,  0xfd8                            # 12854
-ble+    _dbgr_0x12780                                # 12858
+ble+    panic_wrapper_0x12780                        # 12858
 bgt-     cr1, boring_0xb4                            # 1285c
 addi     r8,  r8,  0x27                              # 12860
 rlwinm   r8,  r8,  0,  0, 26                         # 12864
@@ -28193,7 +28204,7 @@ add     r18, r16, r15                                # 128f4
 lwz     r19,  0x0004(r18)                            # 128f8
 cmplw    cr1, r18, r15                               # 128fc
 cmpw    r19, r20                                     # 12900
-ble+     cr1, _dbgr_0x12780                          # 12904
+ble+     cr1, panic_wrapper_0x12780                  # 12904
 bne-    boring_0x118                                 # 12908
 lwz     r17,  0x0000(r18)                            # 1290c
 rotlwi  r19, r19,  0x08                              # 12910
@@ -28321,7 +28332,7 @@ cmpwi    cr1, r15,  0x00                             # 129d8
 li      r15,  0x00                                   # 129dc
 bne+     cr1, major_0x129cc_0x20                     # 129e0
 mflr    r15                                          # 129e4
-bl      dbgr                                         # 129e8
+bl      panic                                        # 129e8
 
 major_0x129cc_0x20:
 stw     r15, -0x0ad0( r1)                            # 129ec
@@ -28349,7 +28360,7 @@ lis     r20,       0x6672                            # 12a00
 lhz     r16,  0x0004(r15)                            # 12a04
 ori     r20, r20,  0x6565                            # 12a08
 cmplwi  r16,  0x876c                                 # 12a0c
-bne+    _dbgr_0x12780                                # 12a10
+bne+    panic_wrapper_0x12780                        # 12a10
 stw     r20,  0x0004(r15)                            # 12a14
 addi    r16,  r1, -0xab0                             # 12a18
 stw     r16,  0x0008(r15)                            # 12a1c
@@ -28381,7 +28392,7 @@ add     r18, r16, r15                                # 12a40
 lwz     r19,  0x0004(r18)                            # 12a44
 cmplw    cr1, r18, r15                               # 12a48
 cmpw    r19, r20                                     # 12a4c
-ble+     cr1, _dbgr_0x12780                          # 12a50
+ble+     cr1, panic_wrapper_0x12780                  # 12a50
 bnelr-                                               # 12a54
 lwz     r17,  0x0000(r18)                            # 12a58
 rotlwi  r19, r19,  0x08                              # 12a5c
@@ -28632,7 +28643,7 @@ blr                                                  # 12b90
 
 /***********************************************************
 
-                       _dbgr_0x12d40                        
+                   panic_wrapper_0x12d40                    
 
 ************************************************************
 
@@ -28643,8 +28654,8 @@ major_0x130f0
 
 ***********************************************************/
 
-_dbgr_0x12d40:  /* < outside referer */
-b       dbgr                                         # 12d40
+panic_wrapper_0x12d40:  /* < outside referer */
+b       panic                                        # 12d40
 
 
 
@@ -28686,7 +28697,7 @@ li       r8,  0x40                                   # 12d98
 # r1 = kdp
 bl      boring                                       # 12d9c
 mr.     r31,  r8                                     # 12da0
-beq+    _dbgr_0x12d40                                # 12da4
+beq+    panic_wrapper_0x12d40                        # 12da4
 stw     r31, -0x0434( r1)                            # 12da8
 li       r9,  0x07                                   # 12dac
 stb      r9,  0x0014(r31)                            # 12db0
@@ -28704,7 +28715,7 @@ li       r8,  0x40                                   # 12dd0
 # r1 = kdp
 bl      boring                                       # 12dd4
 mr.     r31,  r8                                     # 12dd8
-beq+    _dbgr_0x12d40                                # 12ddc
+beq+    panic_wrapper_0x12d40                        # 12ddc
 stw     r31, -0x0364( r1)                            # 12de0
 li       r9,  0x08                                   # 12de4
 stb      r9,  0x0014(r31)                            # 12de8
@@ -28729,7 +28740,7 @@ li       r8,  0x40                                   # 12e24
 # r1 = kdp
 bl      boring                                       # 12e28
 mr.     r31,  r8                                     # 12e2c
-beq+    _dbgr_0x12d40                                # 12e30
+beq+    panic_wrapper_0x12d40                        # 12e30
 li       r9,  0x06                                   # 12e34
 stb      r9,  0x0014(r31)                            # 12e38
 li       r9,  0x01                                   # 12e3c
@@ -28869,7 +28880,7 @@ lis     r20,      major_0x12e88@h                    # 12fa0
 ori     r20, r20, major_0x12e88@l                    # 12fa4
 li      r21,  0x00                                   # 12fa8
 add     r20, r20, r19                                # 12fac
-bgel+   _dbgr_0x12d40                                # 12fb0
+bgel+   panic_wrapper_0x12d40                        # 12fb0
 stb     r21,  0x0017(r30)                            # 12fb4
 lwz     r20,  0x0000(r20)                            # 12fb8
 add     r20, r20, r19                                # 12fbc
@@ -29025,7 +29036,7 @@ major_0x0dce8
 major_0x0e604
 say_nanodebugger_activated
 major_0x12e88
-major_0x154e0
+interrupt_blue
 
 ***********************************************************/
 
@@ -29171,7 +29182,7 @@ bge-    major_0x130f0_0x25c                          # 13310
 mr       r8, r29                                     # 13314
 lwz     r16,  0x0038(r30)                            # 13318
 lwz     r17,  0x003c(r30)                            # 1331c
-bl      crclr_0_ltneg                                # 13320
+bl      clear_cr0_lt                                 # 13320
 bge-    major_0x130f0_0x248                          # 13324
 mr       r8, r29                                     # 13328
 bl      major_0x13ed8_0x8                            # 1332c
@@ -29428,7 +29439,7 @@ major_0x130f0_0x5d8:  /* < outside referer */
 lwz     r16,  0x0008( r8)                            # 136c8
 cmpwi   r16,  0x00                                   # 136cc
 lwz     r18, -0x0a7c( r1)                            # 136d0
-beq+    _dbgr_0x12d40                                # 136d4
+beq+    panic_wrapper_0x12d40                        # 136d4
 lwz     r16,  0x0008( r8)                            # 136d8
 lwz     r17,  0x000c( r8)                            # 136dc
 stw     r16,  0x0008(r17)                            # 136e0
@@ -29566,7 +29577,7 @@ blr                                                  # 137b0
 
 /***********************************************************
 
-                       _dbgr_0x137c0                        
+                   panic_wrapper_0x137c0                    
 
 ************************************************************
 
@@ -29580,8 +29591,8 @@ major_0x149d4
 
 ***********************************************************/
 
-_dbgr_0x137c0:  /* < outside referer */
-b       dbgr                                         # 137c0
+panic_wrapper_0x137c0:  /* < outside referer */
+b       panic                                        # 137c0
 
 
 
@@ -29725,15 +29736,15 @@ stw     r19,  0x019c( r6) # ewa.0x19c                # 138d0
 
 Xrefs:
 save_registers_from_r14
-_int_handler_kind_01
-_int_handler_kind_03
-_int_handler_kind_05
-_int_handler_kind_02
-_int_handler_kind_07
-_int_handler_kind_10
-_int_handler_kind_04
-_int_handler_kind_06
-_int_handler_kind_08
+pdm_pih_01
+pbx_pih_03
+gazelle_pih_05
+tnt_pih_02
+gossamer_pih_07
+unknown_pih_10
+cordyceps_pih_04
+newworld_pih_06
+unknown_pih_08
 
 ************************************************************
 
@@ -29786,7 +29797,7 @@ non_skeleton_reset_trap
 major_0x04880
 syscall_return
 major_0x142dc
-major_0x154e0
+interrupt_blue
 
 ************************************************************
 
@@ -30324,7 +30335,7 @@ major_0x0f2b8
 major_0x130f0
 major_0x142dc
 major_0x14bcc
-major_0x154e0
+interrupt_blue
 
 ***********************************************************/
 
@@ -30334,7 +30345,7 @@ lbz     r18,  0x0018( r8)                            # 13e50
 addi    r16,  r8,  0x08                              # 13e54
 cmpwi    cr1, r18,  0x00                             # 13e58
 cmpwi   r17,  0x00                                   # 13e5c
-beq+     cr1, _dbgr_0x137c0                          # 13e60
+beq+     cr1, panic_wrapper_0x137c0                  # 13e60
 beq-    major_0x13e4c_0x74                           # 13e64
 lwz     r17,  0x0008(r16)                            # 13e68
 lwz     r18,  0x000c(r16)                            # 13e6c
@@ -30353,7 +30364,7 @@ addi    r18, r18, -0x01                              # 13e9c
 stw     r18,  0x0010(r17)                            # 13ea0
 cmpwi   r18,  0x00                                   # 13ea4
 lwz     r16, -0x0970( r1)                            # 13ea8
-blt+    _dbgr_0x137c0                                # 13eac
+blt+    panic_wrapper_0x137c0                        # 13eac
 bne-    major_0x13e4c_0x74                           # 13eb0
 lwz     r18,  0x0000(r17)                            # 13eb4
 andc    r16, r16, r18                                # 13eb8
@@ -30397,7 +30408,7 @@ major_0x130f0
 major_0x142dc
 major_0x14548
 major_0x14bcc
-major_0x154e0
+interrupt_blue
 
 ***********************************************************/
 
@@ -30413,7 +30424,7 @@ lwz     r16,  0x0010( r8)                            # 13ee4
 lis     r17,      -0x8000                            # 13ee8
 cmpwi   r16,  0x00                                   # 13eec
 lbz     r18,  0x0019( r8)                            # 13ef0
-bne+    _dbgr_0x137c0                                # 13ef4
+bne+    panic_wrapper_0x137c0                        # 13ef4
 lwz     r16, -0x0970( r1)                            # 13ef8
 srw     r17, r17, r18                                # 13efc
 mulli   r18, r18,  0x20                              # 13f00
@@ -30476,7 +30487,7 @@ lwz     r16,  0x0004( r8)                            # 13f84
 lis     r17,       0x5350                            # 13f88
 ori     r17, r17,  0x4143                            # 13f8c
 cmpw    r16, r17                                     # 13f90
-bne+    _dbgr_0x137c0                                # 13f94
+bne+    panic_wrapper_0x137c0                        # 13f94
 rlwinm. r16,  r7,  0, 12, 12                         # 13f98
 isync                                                # 13f9c
 lwz     r16,  0x0030( r8)                            # 13fa0
@@ -30880,7 +30891,7 @@ lwz     r27, -0x0970( r1)                            # 143f8
 addi    r28, r28, -0x01                              # 143fc
 cmpwi   r28,  0x00                                   # 14400
 stw     r28,  0x0010(r26)                            # 14404
-bltl+   _dbgr_0x137c0                                # 14408
+bltl+   panic_wrapper_0x137c0                        # 14408
 bne-    major_0x142dc_0x140                          # 1440c
 lwz     r28,  0x0000(r26)                            # 14410
 andc    r27, r27, r28                                # 14414
@@ -30932,7 +30943,7 @@ cmpwi    cr1, r27,  0x00                             # 144b0
 li      r27,  0x00                                   # 144b4
 bne+     cr1, major_0x142dc_0x1e8                    # 144b8
 mflr    r27                                          # 144bc
-bl      dbgr                                         # 144c0
+bl      panic                                        # 144c0
 
 major_0x142dc_0x1e8:
 stw     r27, -0x0b50( r1)                            # 144c4
@@ -31128,7 +31139,7 @@ lwz     r29, -0x0440( r1)                            # 146b4
 stw     r27,  0x0064(r30)                            # 146b8
 stw      r8, -0x0440( r1)                            # 146bc
 blt-     cr2, major_0x14548_0x1cc                    # 146c0
-bsol+    cr6, _dbgr_0x137c0                          # 146c4
+bsol+    cr6, panic_wrapper_0x137c0                  # 146c4
 clrlwi   r8,  r7,  0x08                              # 146c8
 stw      r8,  0x0000( r6)                            # 146cc
 lwz      r6,  0x0658( r1)                            # 146d0
@@ -31143,7 +31154,7 @@ mtcr     r7                                          # 146f0
 stw     r26, -0x000c(r19)                            # 146f4
 lwz     r13,  0x00dc( r6)                            # 146f8
 lwz     r11,  0x00a4( r6)                            # 146fc
-bsol+    cr6, _dbgr_0x137c0                          # 14700
+bsol+    cr6, panic_wrapper_0x137c0                  # 14700
 rlwimi  r11,  r7,  0, 20, 23                         # 14704
 rlwimi   r7,  r8,  0,  9, 16                         # 14708
 rlwimi  r11, r27, 24, 29, 29                         # 1470c
@@ -31275,7 +31286,7 @@ cmpwi    cr1,  r8,  0x00                             # 148d0
 li       r8,  0x00                                   # 148d4
 bne+     cr1, major_0x14548_0x39c                    # 148d8
 mflr     r8                                          # 148dc
-bl      dbgr                                         # 148e0
+bl      panic                                        # 148e0
 
 major_0x14548_0x39c:
 stw      r8, -0x0b50( r1)                            # 148e4
@@ -31393,7 +31404,7 @@ major_0x0e548
 major_0x130f0
 major_0x142dc
 major_0x14bcc
-major_0x154e0
+interrupt_blue
 
 ***********************************************************/
 
@@ -31409,7 +31420,7 @@ lwz     r18,  0x0010( r8)                            # 149e0
 lwz     r16,  0x0008( r8)                            # 149e4
 cmpwi   r18,  0x00                                   # 149e8
 lwz     r17,  0x001c( r8)                            # 149ec
-beq+    _dbgr_0x137c0                                # 149f0
+beq+    panic_wrapper_0x137c0                        # 149f0
 lwz     r18,  0x0014(r16)                            # 149f4
 lwz     r19,  0x0018(r16)                            # 149f8
 lwz     r20,  0x001c(r16)                            # 149fc
@@ -31462,7 +31473,7 @@ blr                                                  # 14a8c
 
 /***********************************************************
 
-                       crclr_0_ltneg                        
+                        clear_cr0_lt                        
 
 ************************************************************
 
@@ -31471,7 +31482,7 @@ major_0x130f0
 
 ***********************************************************/
 
-crclr_0_ltneg:  /* < outside referer */
+clear_cr0_lt:  /* < outside referer */
 crclr   4*cr0 + lt                                   # 14a90
 blr                                                  # 14a94
 
@@ -31550,7 +31561,7 @@ NKThrowException
 major_0x0ea58
 major_0x0f2b8
 major_0x130f0
-major_0x154e0
+interrupt_blue
 
 ***********************************************************/
 
@@ -31953,7 +31964,7 @@ cmpwi    cr1, r16,  0x00                             # 15090
 li      r16,  0x00                                   # 15094
 bne+     cr1, major_0x14bcc_0x4d8                    # 15098
 mflr    r16                                          # 1509c
-bl      dbgr                                         # 150a0
+bl      panic                                        # 150a0
 
 major_0x14bcc_0x4d8:
 stw     r16, -0x0b50( r1)                            # 150a4
@@ -32001,7 +32012,7 @@ b       major_0x14bcc_0x544                          # 15128
 
 /***********************************************************
 
-                       _dbgr_0x15140                        
+                   panic_wrapper_0x15140                    
 
 ************************************************************
 
@@ -32010,8 +32021,8 @@ major_0x15144
 
 ***********************************************************/
 
-_dbgr_0x15140:  /* < outside referer */
-b       dbgr                                         # 15140
+panic_wrapper_0x15140:  /* < outside referer */
+b       panic                                        # 15140
 
 
 
@@ -32034,7 +32045,7 @@ li       r8, 520                                     # 15148
 bl      boring                                       # 1514c
 mr.     r22,  r8                                     # 15150
 stw      r8, -0x0a98( r1)                            # 15154
-beq+    _dbgr_0x15140                                # 15158
+beq+    panic_wrapper_0x15140                        # 15158
 li       r9,  0x00                                   # 1515c
 stw      r9,  0x0efc( r1)                            # 15160
 sth      r9,  0x0000(r22)                            # 15164
@@ -32048,7 +32059,7 @@ li       r8,  0xfd8                                  # 15178
 bl      boring                                       # 1517c
 cmpwi    r8,  0x00                                   # 15180
 stw      r8,  0x0008(r22)                            # 15184
-beq+    _dbgr_0x15140                                # 15188
+beq+    panic_wrapper_0x15140                        # 15188
 mtlr    r23                                          # 1518c
 li       r9,  0x00                                   # 15190
 sth      r9,  0x0000( r8)                            # 15194
@@ -32365,8 +32376,8 @@ major_0x11fac
 major_0x120a8
 major_0x12110
 major_0x121d4
-major_0x154e0
-dbgr
+interrupt_blue
+panic
 
 ************************************************************
 
@@ -32417,7 +32428,7 @@ nk_get_next_id_owned
 major_0x0b8b8
 major_0x0b90c
 major_0x10ff0
-dbgr
+panic
 
 ***********************************************************/
 
@@ -32492,11 +32503,11 @@ blr                                                  # 1548c
 
 /***********************************************************
 
-                  choose_int_handler_kind                   
+                        get_pih_addr                        
 
 ************************************************************
 
-ConfigInfo has a byte at 0x40, which on NewWorld machines, equals 6 and is inherited from the ConfigInfo template at ROM image offset 0x30d000. That byte is used to choose an entry from this table, to become the "interrupt handler".
+ConfigInfo specifies a one-byte primary interrupt handler kind. Look up function address in this table.
 
 ************************************************************
 
@@ -32509,31 +32520,31 @@ new_world
 > r3    = ConfigInfo
 
 < r12   = clobbered
-< r7    = interrupt handler address
+< r7    = pih_pa
 
 ***********************************************************/
 
-choose_int_handler_kind:  /* < outside referer */
+get_pih_addr:  /* < outside referer */
 mflr    r12                                          # 154a0
 bl      1f                                           # 154a4
 
-int_handler_tbl:
+pih_tbl:
 .short  0                                            # 154a8
-.short  _int_handler_kind_01 - int_handler_tbl       # 154aa
-.short  _int_handler_kind_02 - int_handler_tbl       # 154ac
-.short  _int_handler_kind_03 - int_handler_tbl       # 154ae
-.short  _int_handler_kind_04 - int_handler_tbl       # 154b0
-.short  _int_handler_kind_05 - int_handler_tbl       # 154b2
-.short  _int_handler_kind_06 - int_handler_tbl       # 154b4
-.short  _int_handler_kind_07 - int_handler_tbl       # 154b6
-.short  _int_handler_kind_08 - int_handler_tbl       # 154b8
+.short  pdm_pih_01 - pih_tbl                         # 154aa
+.short  tnt_pih_02 - pih_tbl                         # 154ac
+.short  pbx_pih_03 - pih_tbl                         # 154ae
+.short  cordyceps_pih_04 - pih_tbl                   # 154b0
+.short  gazelle_pih_05 - pih_tbl                     # 154b2
+.short  newworld_pih_06 - pih_tbl                    # 154b4
+.short  gossamer_pih_07 - pih_tbl                    # 154b6
+.short  unknown_pih_08 - pih_tbl                     # 154b8
 .short  0                                            # 154ba
-.short  _int_handler_kind_10 - int_handler_tbl       # 154bc
+.short  unknown_pih_10 - pih_tbl                     # 154bc
 .short  0                                            # 154be
 .align  2                                            # 154c0
 1: mflr  r7                                          # 154c0
 mtlr    r12                                          # 154c4
-lbz     r12,  0x0098( r3) # ConfigInfo.u8_int_handler_kind
+lbz     r12,  0x0098( r3) # ConfigInfo.u8_pih_kind   # 154c8
 slwi    r12, r12,  1                                 # 154cc
 lhzx    r12,  r7, r12                                # 154d0
 add      r7,  r7, r12                                # 154d4
@@ -32553,81 +32564,89 @@ blr                                                  # 154d8
 
 /***********************************************************
 
-                       major_0x154e0                        
+                       interrupt_blue                       
+
+************************************************************
+
+At least I think so.
 
 ************************************************************
 
 Xrefs:
 NKPropogateExternalInterrupt
-_int_handler_kind_01
-_int_handler_kind_03
-_int_handler_kind_05
-_int_handler_kind_02
-_int_handler_kind_07
-_int_handler_kind_10
-_int_handler_kind_04
-_int_handler_kind_06
-_int_handler_kind_08
+pdm_pih_01
+pbx_pih_03
+gazelle_pih_05
+tnt_pih_02
+gossamer_pih_07
+unknown_pih_10
+cordyceps_pih_04
+newworld_pih_06
+unknown_pih_08
+
+************************************************************
+
+> r1    = kdp
 
 ***********************************************************/
 
-major_0x154e0:  /* < outside referer */
+interrupt_blue:  /* < outside referer */
 mtspr   275/*sprg3*/, r30                            # 154e0
-lwz     r23,  0x067c( r1)                            # 154e4
-lwz     r27, -0x0428( r1)                            # 154e8
+lwz     r23,  0x067c( r1) # kdp.0x67c                # 154e4
+lwz     r27, -0x0428( r1) # kdp.-0x428               # 154e8
 
-major_0x154e0_0xc:  /* < outside referer */
+interrupt_blue_0xc:  /* < outside referer */
 cmpwi    cr7, r28,  0x00                             # 154ec
 li      r31,  0x00                                   # 154f0
-blt-     cr7, major_0x154e0_0x50                     # 154f4
-beq-     cr7, major_0x154e0_0x24                     # 154f8
+blt-     cr7, interrupt_blue_0x50                    # 154f4
+beq-     cr7, interrupt_blue_0x24                    # 154f8
 ori     r28, r28,  0x8000                            # 154fc
-lwz     r31,  0x0674( r1)                            # 15500
+lwz     r31,  0x0674( r1) # kdp.0x674                # 15500
 
-major_0x154e0_0x24:
+interrupt_blue_0x24:
 andis.   r8, r11,  0x02                              # 15504
 cmpwi    cr1, r27,  0x00                             # 15508
-lwz     r29,  0x0678( r1)                            # 1550c
-bne-    major_0x154e0_0x38                           # 15510
-bne-     cr1, major_0x154e0_0x78                     # 15514
+lwz     r29,  0x0678( r1) # kdp.0x678                # 1550c
+bne-    interrupt_blue_0x38                          # 15510
+bne-     cr1, interrupt_blue_0x78                    # 15514
 
-major_0x154e0_0x38:
+interrupt_blue_0x38:
 rlwinm.  r8,  r7,  0, 10, 10                         # 15518
-beq-    major_0x154e0_0x14c                          # 1551c
+beq-    interrupt_blue_0x14c                         # 1551c
 sth     r28,  0x0000(r23)                            # 15520
 or      r13, r13, r31                                # 15524
-bgt-     cr7, major_0x154e0_0x50                     # 15528
+bgt-     cr7, interrupt_blue_0x50                    # 15528
 and     r13, r13, r29                                # 1552c
 
-major_0x154e0_0x50:
+interrupt_blue_0x50:
 sync                                                 # 15530
-lwz      r8, -0x0b70( r1)                            # 15534
+lwz      r8, -0x0b70( r1) # kdp.pih_lock             # 15534
 cmpwi    cr1,  r8,  0x00                             # 15538
 li       r8,  0x00                                   # 1553c
-bne+     cr1, major_0x154e0_0x6c                     # 15540
+bne+     cr1, interrupt_blue_0x6c                    # 15540
 mflr     r8                                          # 15544
-bl      dbgr                                         # 15548
+bl      panic                                        # 15548
 
-major_0x154e0_0x6c:
-stw      r8, -0x0b70( r1)                            # 1554c
+interrupt_blue_0x6c:
+stw      r8, -0x0b70( r1) # kdp.pih_lock             # 1554c
 bl      restore_registers_from_r14_0x28              # 15550
 b       skeleton_key                                 # 15554
 
-major_0x154e0_0x78:
+interrupt_blue_0x78:
 sync                                                 # 15558
-lwz      r8, -0x0b70( r1)                            # 1555c
+lwz      r8, -0x0b70( r1) # kdp.pih_lock             # 1555c
 cmpwi    cr1,  r8,  0x00                             # 15560
 li       r8,  0x00                                   # 15564
-bne+     cr1, major_0x154e0_0x94                     # 15568
+bne+     cr1, interrupt_blue_0x94                    # 15568
 mflr     r8                                          # 1556c
-bl      dbgr                                         # 15570
+bl      panic                                        # 15570
 
-major_0x154e0_0x94:
-stw      r8, -0x0b70( r1)                            # 15574
-bl      NKPropogateExternalInterrupt_0x54            # 15578
+interrupt_blue_0x94:
+stw      r8, -0x0b70( r1) # kdp.pih_lock             # 15574
+bl      major_0x15794                                # 15578
 mr       r8,  r8                                     # 1557c
 mr       r9,  r9                                     # 15580
-addi     r8,  r1, -0xb50                             # 15584
+addi     r8,  r1, -0xb50 # kdp.sch_lock              # 15584
 
 # r8 = lock
 bl      lock                                         # 15588
@@ -32642,76 +32661,76 @@ bl      id_kind                                      # 15598
 
 cmpwi    r9,  0x0c                                   # 1559c
 mr      r30,  r8                                     # 155a0
-bne-    major_0x154e0_0x100                          # 155a4
+bne-    interrupt_blue_0x100                         # 155a4
 clrlwi   r9, r28,  0x11                              # 155a8
 stw      r9,  0x0010(r30)                            # 155ac
 stw     r22,  0x0014(r30)                            # 155b0
 bl      major_0x0db04                                # 155b4
 sync                                                 # 155b8
-lwz      r8, -0x0b50( r1)                            # 155bc
+lwz      r8, -0x0b50( r1) # kdp.sch_lock             # 155bc
 cmpwi    cr1,  r8,  0x00                             # 155c0
 li       r8,  0x00                                   # 155c4
-bne+     cr1, major_0x154e0_0xf4                     # 155c8
+bne+     cr1, interrupt_blue_0xf4                    # 155c8
 mflr     r8                                          # 155cc
-bl      dbgr                                         # 155d0
+bl      panic                                        # 155d0
 
-major_0x154e0_0xf4:
-stw      r8, -0x0b50( r1)                            # 155d4
+interrupt_blue_0xf4:
+stw      r8, -0x0b50( r1) # kdp.sch_lock             # 155d4
 
 # r6 = ewa
 bl      restore_registers_from_r14                   # 155d8
 b       skeleton_key                                 # 155dc
 
-major_0x154e0_0x100:
+interrupt_blue_0x100:
 li      r27,  0x00                                   # 155e0
-lwz     r23,  0x067c( r1)                            # 155e4
-stw     r27, -0x0428( r1)                            # 155e8
+lwz     r23,  0x067c( r1) # kdp.0x67c                # 155e4
+stw     r27, -0x0428( r1) # kdp.-0x428               # 155e8
 sync                                                 # 155ec
-lwz      r8, -0x0b50( r1)                            # 155f0
+lwz      r8, -0x0b50( r1) # kdp.sch_lock             # 155f0
 cmpwi    cr1,  r8,  0x00                             # 155f4
 li       r8,  0x00                                   # 155f8
-bne+     cr1, major_0x154e0_0x128                    # 155fc
+bne+     cr1, interrupt_blue_0x128                   # 155fc
 mflr     r8                                          # 15600
-bl      dbgr                                         # 15604
+bl      panic                                        # 15604
 
-major_0x154e0_0x128:
-stw      r8, -0x0b50( r1)                            # 15608
-bl      NKPropogateExternalInterrupt_0x70            # 1560c
+interrupt_blue_0x128:
+stw      r8, -0x0b50( r1) # kdp.sch_lock             # 15608
+bl      major_0x15794_0x1c                           # 1560c
 mr       r8,  r8                                     # 15610
 mr       r9,  r9                                     # 15614
-addi     r8,  r1, -0xb70                             # 15618
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15618
 
 # r8 = lock
 bl      lock                                         # 1561c
 mr       r8,  r8                                     # 15620
 mr       r9,  r9                                     # 15624
-b       major_0x154e0_0xc                            # 15628
+b       interrupt_blue_0xc                           # 15628
 
-major_0x154e0_0x14c:
+interrupt_blue_0x14c:
 sync                                                 # 1562c
-lwz      r8, -0x0b70( r1)                            # 15630
+lwz      r8, -0x0b70( r1) # kdp.pih_lock             # 15630
 cmpwi    cr1,  r8,  0x00                             # 15634
 li       r8,  0x00                                   # 15638
-bne+     cr1, major_0x154e0_0x168                    # 1563c
+bne+     cr1, interrupt_blue_0x168                   # 1563c
 mflr     r8                                          # 15640
-bl      dbgr                                         # 15644
+bl      panic                                        # 15644
 
-major_0x154e0_0x168:
-stw      r8, -0x0b70( r1)                            # 15648
-bl      NKPropogateExternalInterrupt_0x54            # 1564c
+interrupt_blue_0x168:
+stw      r8, -0x0b70( r1) # kdp.pih_lock             # 15648
+bl      major_0x15794                                # 1564c
 mr      r16,  r8                                     # 15650
 mr      r17,  r9                                     # 15654
-addi     r8,  r1, -0xb50                             # 15658
+addi     r8,  r1, -0xb50 # kdp.sch_lock              # 15658
 
 # r8 = lock
 bl      lock                                         # 1565c
 mr       r8, r16                                     # 15660
 mr       r9, r17                                     # 15664
-lwz     r30, -0x0440( r1)                            # 15668
+lwz     r30, -0x0440( r1) # kdp.-0x440               # 15668
 or      r31, r31, r30                                # 1566c
-stw     r31, -0x0440( r1)                            # 15670
-sth     r28, -0x043c( r1)                            # 15674
-lwz     r31, -0x08f0( r1)                            # 15678
+stw     r31, -0x0440( r1) # kdp.-0x440               # 15670
+sth     r28, -0x043c( r1) # kdp.-0x43c               # 15674
+lwz     r31, -0x08f0( r1) # kdp.-0x8f0               # 15678
 mfspr   r30, 272/*sprg0*/                            # 1567c
 lwz     r28,  0x0064(r31)                            # 15680
 lbz     r29,  0x0018(r31)                            # 15684
@@ -32719,19 +32738,19 @@ ori     r28, r28,  0x10                              # 15688
 stw     r28,  0x0064(r31)                            # 1568c
 cmpwi   r29,  0x00                                   # 15690
 lhz     r16,  0x001a(r31)                            # 15694
-beq-    major_0x154e0_0x1dc                          # 15698
+beq-    interrupt_blue_0x1dc                         # 15698
 lhz     r17, -0x0116(r30)                            # 1569c
 cmpw     cr1, r16, r17                               # 156a0
 rlwinm.  r8, r28,  0, 26, 26                         # 156a4
-beq-     cr1, major_0x154e0_0x1d0                    # 156a8
-bne-    major_0x154e0_0x230                          # 156ac
+beq-     cr1, interrupt_blue_0x1d0                   # 156a8
+bne-    interrupt_blue_0x230                         # 156ac
 
-major_0x154e0_0x1d0:
+interrupt_blue_0x1d0:
 mr       r8, r31                                     # 156b0
 bl      major_0x13e4c                                # 156b4
-b       major_0x154e0_0x218                          # 156b8
+b       interrupt_blue_0x218                         # 156b8
 
-major_0x154e0_0x1dc:
+interrupt_blue_0x1dc:
 addi    r16, r31,  0x08                              # 156bc
 lwz     r17,  0x0008(r16)                            # 156c0
 lwz     r18,  0x000c(r16)                            # 156c4
@@ -32742,15 +32761,15 @@ stw     r17,  0x0008(r16)                            # 156d4
 stw     r17,  0x000c(r16)                            # 156d8
 lbz     r17,  0x0037(r31)                            # 156dc
 cmpwi   r17,  0x01                                   # 156e0
-bne-    major_0x154e0_0x210                          # 156e4
+bne-    interrupt_blue_0x210                         # 156e4
 addi     r8, r31,  0x20                              # 156e8
 bl      major_0x130f0_0x5d8                          # 156ec
 
-major_0x154e0_0x210:
-lwz     r16,  0x0e80( r1)                            # 156f0
-stw     r16, -0x08e4( r1)                            # 156f4
+interrupt_blue_0x210:
+lwz     r16,  0x0e80( r1) # kdp.0xe80                # 156f0
+stw     r16, -0x08e4( r1) # kdp.-0x8e4               # 156f4
 
-major_0x154e0_0x218:
+interrupt_blue_0x218:
 li      r16,  0x00                                   # 156f8
 stb     r16,  0x0019(r31)                            # 156fc
 mr       r8, r31                                     # 15700
@@ -32758,19 +32777,19 @@ bl      major_0x13ed8                                # 15704
 mr       r8, r31                                     # 15708
 bl      major_0x149d4_0x8                            # 1570c
 
-major_0x154e0_0x230:
+interrupt_blue_0x230:
 mr       r8, r31                                     # 15710
 bl      major_0x14af8                                # 15714
 sync                                                 # 15718
-lwz     r16, -0x0b50( r1)                            # 1571c
+lwz     r16, -0x0b50( r1) # kdp.sch_lock             # 1571c
 cmpwi    cr1, r16,  0x00                             # 15720
 li      r16,  0x00                                   # 15724
-bne+     cr1, major_0x154e0_0x254                    # 15728
+bne+     cr1, interrupt_blue_0x254                   # 15728
 mflr    r16                                          # 1572c
-bl      dbgr                                         # 15730
+bl      panic                                        # 15730
 
-major_0x154e0_0x254:
-stw     r16, -0x0b50( r1)                            # 15734
+interrupt_blue_0x254:
+stw     r16, -0x0b50( r1) # kdp.sch_lock             # 15734
 
 # r6 = ewa
 bl      restore_registers_from_r14                   # 15738
@@ -32790,7 +32809,10 @@ syscall 122
 
 Xrefs:
 syscall
-major_0x154e0
+
+************************************************************
+
+> r1    = kdp
 
 ***********************************************************/
 
@@ -32801,13 +32823,13 @@ bne-    NKPropogateExternalInterrupt_0x4c            # 15748
 bgt-     cr1, NKPropogateExternalInterrupt_0x50      # 1574c
 mr       r8,  r8                                     # 15750
 mr       r9,  r9                                     # 15754
-addi     r8,  r1, -0xb70                             # 15758
+addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15758
 
 # r8 = lock
 bl      lock                                         # 1575c
 mr       r8,  r8                                     # 15760
 mr       r9,  r9                                     # 15764
-lwz     r23,  0x067c( r1)                            # 15768
+lwz     r23,  0x067c( r1) # kdp.0x67c                # 15768
 lbz     r28,  0x0001(r23)                            # 1576c
 cmpw     r3, r28                                     # 15770
 ble-    NKPropogateExternalInterrupt_0x3c            # 15774
@@ -32816,8 +32838,8 @@ mr      r28,  r3                                     # 15778
 NKPropogateExternalInterrupt_0x3c:
 li      r27,  0x00                                   # 1577c
 li       r3,  0x00                                   # 15780
-bl      NKPropogateExternalInterrupt_0x70            # 15784
-b       major_0x154e0_0xc                            # 15788
+bl      major_0x15794_0x1c                           # 15784
+b       interrupt_blue_0xc                           # 15788
 
 NKPropogateExternalInterrupt_0x4c:
 b       syscall_return_kMPInsufficientResourcesErr   # 1578c
@@ -32825,7 +32847,21 @@ b       syscall_return_kMPInsufficientResourcesErr   # 1578c
 NKPropogateExternalInterrupt_0x50:
 b       syscall_return_paramErr                      # 15790
 
-NKPropogateExternalInterrupt_0x54:  /* < outside referer */
+
+
+/***********************************************************
+
+                       major_0x15794                        
+
+************************************************************
+
+Xrefs:
+interrupt_blue
+NKPropogateExternalInterrupt
+
+***********************************************************/
+
+major_0x15794:  /* < outside referer */
 stw     r14,  0x0174( r6)                            # 15794
 stw     r15,  0x017c( r6)                            # 15798
 stw     r16,  0x0184( r6)                            # 1579c
@@ -32834,7 +32870,7 @@ stw     r18,  0x0194( r6)                            # 157a4
 stw     r19,  0x019c( r6)                            # 157a8
 blr                                                  # 157ac
 
-NKPropogateExternalInterrupt_0x70:  /* < outside referer */
+major_0x15794_0x1c:  /* < outside referer */
 lwz     r14,  0x0174( r6)                            # 157b0
 lwz     r15,  0x017c( r6)                            # 157b4
 lwz     r16,  0x0184( r6)                            # 157b8
@@ -32895,12 +32931,16 @@ machine_specific_lut:  /* < outside referer */
 
 /***********************************************************
 
-                    _int_handler_kind_01                    
+                         pdm_pih_01                         
+
+************************************************************
+
+Piltdown Man = first ("G1") Power Macs. NuBus. Models 61xx, 71xx, 81xx.
 
 ************************************************************
 
 Xrefs:
-int_handler
+pih_indirect
 
 ************************************************************
 
@@ -32908,7 +32948,7 @@ int_handler
 
 ***********************************************************/
 
-_int_handler_kind_01:  /* < outside referer */
+pdm_pih_01:  /* < outside referer */
 mr       r8,  r8                                     # 15840
 mr       r9,  r9                                     # 15844
 addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15848
@@ -32925,12 +32965,12 @@ bl      save_registers_from_r20                      # 15858
 addi     r9,  r1, -0x750 # kdp.-0x750                # 1585c
 andis.   r8, r11,  0x02                              # 15860
 mfspr   r30, 275/*sprg3*/                            # 15864
-bne-    _int_handler_kind_01_0x38                    # 15868
+bne-    pdm_pih_01_0x38                              # 15868
 lwz     r21,  0x0e80( r1) # kdp.0xe80                # 1586c
 addi    r21, r21,  0x01                              # 15870
 stw     r21,  0x0e80( r1) # kdp.0xe80                # 15874
 
-_int_handler_kind_01_0x38:
+pdm_pih_01_0x38:
 mtspr   275/*sprg3*/,  r9                            # 15878
 lis     r22,       0x50f3                            # 1587c
 mfmsr   r23                                          # 15880
@@ -32957,7 +32997,9 @@ ori     r28, r28, machine_specific_lut@l             # 158d0
 lbzx    r28, r28, r23                                # 158d4
 mtsrin  r21, r22                                     # 158d8
 isync                                                # 158dc
-b       major_0x154e0                                # 158e0
+
+# r1 = kdp
+b       interrupt_blue                               # 158e0
 
 
 
@@ -32979,12 +33021,16 @@ b       major_0x154e0                                # 158e0
 
 /***********************************************************
 
-                    _int_handler_kind_03                    
+                         pbx_pih_03                         
+
+************************************************************
+
+PBX = NuBus PowerBooks. Possibly not including the 5300?
 
 ************************************************************
 
 Xrefs:
-int_handler
+pih_indirect
 
 ************************************************************
 
@@ -32992,7 +33038,7 @@ int_handler
 
 ***********************************************************/
 
-_int_handler_kind_03:  /* < outside referer */
+pbx_pih_03:  /* < outside referer */
 mr       r8,  r8                                     # 15900
 mr       r9,  r9                                     # 15904
 addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15908
@@ -33009,12 +33055,12 @@ bl      save_registers_from_r20                      # 15918
 addi     r9,  r1, -0x750 # kdp.-0x750                # 1591c
 andis.   r8, r11,  0x02                              # 15920
 mfspr   r30, 275/*sprg3*/                            # 15924
-bne-    _int_handler_kind_03_0x38                    # 15928
+bne-    pbx_pih_03_0x38                              # 15928
 lwz     r21,  0x0e80( r1) # kdp.0xe80                # 1592c
 addi    r21, r21,  0x01                              # 15930
 stw     r21,  0x0e80( r1) # kdp.0xe80                # 15934
 
-_int_handler_kind_03_0x38:
+pbx_pih_03_0x38:
 mtspr   275/*sprg3*/,  r9                            # 15938
 lis     r22,       0x50f3                            # 1593c
 mfmsr   r23                                          # 15940
@@ -33042,7 +33088,9 @@ isync                                                # 15994
 mtsrin  r21, r22                                     # 15998
 isync                                                # 1599c
 clrlwi  r28, r28,  0x1d                              # 159a0
-b       major_0x154e0                                # 159a4
+
+# r1 = kdp
+b       interrupt_blue                               # 159a4
 
 
 
@@ -33063,12 +33111,17 @@ b       major_0x154e0                                # 159a4
 
 /***********************************************************
 
-                    _int_handler_kind_05                    
+                       gazelle_pih_05                       
+
+************************************************************
+
+Gazelle = later low-end "G2" Power Macs. 603 series processors. PCI. Models 54xx-55xx, 64xx-65xx.
+The 54xx/64xx ROM actually identifies as Alchemy, not Gazelle, and SheepShaver considers this difference when patching the ROM Nanokernels. But, Wikipedia describes these machines as minor upgrades, EveryMac calls them Gazelle, and they use the same PIH type.
 
 ************************************************************
 
 Xrefs:
-int_handler
+pih_indirect
 
 ************************************************************
 
@@ -33076,7 +33129,7 @@ int_handler
 
 ***********************************************************/
 
-_int_handler_kind_05:  /* < outside referer */
+gazelle_pih_05:  /* < outside referer */
 mr       r8,  r8                                     # 159c0
 mr       r9,  r9                                     # 159c4
 addi     r8,  r1, -0xb70 # kdp.pih_lock              # 159c8
@@ -33093,12 +33146,12 @@ bl      save_registers_from_r20                      # 159d8
 addi     r9,  r1, -0x750 # kdp.-0x750                # 159dc
 andis.   r8, r11,  0x02                              # 159e0
 mfspr   r30, 275/*sprg3*/                            # 159e4
-bne-    _int_handler_kind_05_0x38                    # 159e8
+bne-    gazelle_pih_05_0x38                          # 159e8
 lwz     r21,  0x0e80( r1) # kdp.0xe80                # 159ec
 addi    r21, r21,  0x01                              # 159f0
 stw     r21,  0x0e80( r1) # kdp.0xe80                # 159f4
 
-_int_handler_kind_05_0x38:
+gazelle_pih_05_0x38:
 mtspr   275/*sprg3*/,  r9                            # 159f8
 lis     r22,      -0xd00                             # 159fc
 mfmsr   r20                                          # 15a00
@@ -33137,24 +33190,26 @@ mtmsr   r20                                          # 15a80
 isync                                                # 15a84
 andis.  r28, r23,  0x10                              # 15a88
 li      r28,  0x07                                   # 15a8c
-bne-    _int_handler_kind_05_0x104                   # 15a90
+bne-    gazelle_pih_05_0x104                         # 15a90
 rlwinm  r28, r23,  0, 15, 16                         # 15a94
 rlwimi. r28, r23,  0, 22, 31                         # 15a98
 li      r28,  0x04                                   # 15a9c
-bne-    _int_handler_kind_05_0x104                   # 15aa0
+bne-    gazelle_pih_05_0x104                         # 15aa0
 andis.  r28, r23,  0x5fca                            # 15aa4
 rlwimi. r28, r23,  0, 17, 20                         # 15aa8
 li      r28,  0x02                                   # 15aac
-bne-    _int_handler_kind_05_0x104                   # 15ab0
+bne-    gazelle_pih_05_0x104                         # 15ab0
 andis.  r28, r23,  0x04                              # 15ab4
 li      r28,  0x01                                   # 15ab8
-bne-    _int_handler_kind_05_0x104                   # 15abc
+bne-    gazelle_pih_05_0x104                         # 15abc
 li      r28,  0x00                                   # 15ac0
 
-_int_handler_kind_05_0x104:
+gazelle_pih_05_0x104:
 mtsrin  r21, r22                                     # 15ac4
 isync                                                # 15ac8
-b       major_0x154e0                                # 15acc
+
+# r1 = kdp
+b       interrupt_blue                               # 15acc
 
 
 
@@ -33181,12 +33236,16 @@ b       major_0x154e0                                # 15acc
 
 /***********************************************************
 
-                    _int_handler_kind_02                    
+                         tnt_pih_02                         
+
+************************************************************
+
+TNT = High-end and mid-range "G2" Power Macs. PCI. 603 and 604 series processors. Models 7200-7600, 8500-8600, 9500-9600.
 
 ************************************************************
 
 Xrefs:
-int_handler
+pih_indirect
 
 ************************************************************
 
@@ -33194,7 +33253,7 @@ int_handler
 
 ***********************************************************/
 
-_int_handler_kind_02:  /* < outside referer */
+tnt_pih_02:  /* < outside referer */
 mr       r8,  r8                                     # 15b00
 mr       r9,  r9                                     # 15b04
 addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15b08
@@ -33211,12 +33270,12 @@ bl      save_registers_from_r20                      # 15b18
 addi     r9,  r1, -0x750 # kdp.-0x750                # 15b1c
 andis.   r8, r11,  0x02                              # 15b20
 mfspr   r30, 275/*sprg3*/                            # 15b24
-bne-    _int_handler_kind_02_0x38                    # 15b28
+bne-    tnt_pih_02_0x38                              # 15b28
 lwz     r21,  0x0e80( r1) # kdp.0xe80                # 15b2c
 addi    r21, r21,  0x01                              # 15b30
 stw     r21,  0x0e80( r1) # kdp.0xe80                # 15b34
 
-_int_handler_kind_02_0x38:
+tnt_pih_02_0x38:
 mtspr   275/*sprg3*/,  r9                            # 15b38
 lis     r22,      -0xd00                             # 15b3c
 mfmsr   r20                                          # 15b40
@@ -33244,24 +33303,26 @@ mtmsr   r20                                          # 15b94
 isync                                                # 15b98
 rlwinm. r28, r23,  0, 11, 11                         # 15b9c
 li      r28,  0x07                                   # 15ba0
-bne-    _int_handler_kind_02_0xd8                    # 15ba4
+bne-    tnt_pih_02_0xd8                              # 15ba4
 rlwinm  r28, r23,  0, 15, 16                         # 15ba8
 rlwimi. r28, r23,  0, 21, 31                         # 15bac
 li      r28,  0x04                                   # 15bb0
-bne-    _int_handler_kind_02_0xd8                    # 15bb4
+bne-    tnt_pih_02_0xd8                              # 15bb4
 rlwinm. r28, r23,  0, 17, 17                         # 15bb8
 li      r28,  0x03                                   # 15bbc
-bne-    _int_handler_kind_02_0xd8                    # 15bc0
+bne-    tnt_pih_02_0xd8                              # 15bc0
 andis.  r28, r23,  0x7fea                            # 15bc4
 rlwimi. r28, r23,  0, 18, 19                         # 15bc8
 li      r28,  0x02                                   # 15bcc
-bne-    _int_handler_kind_02_0xd8                    # 15bd0
+bne-    tnt_pih_02_0xd8                              # 15bd0
 rlwinm. r28, r23, 14, 31, 31                         # 15bd4
 
-_int_handler_kind_02_0xd8:
+tnt_pih_02_0xd8:
 mtsrin  r21, r22                                     # 15bd8
 isync                                                # 15bdc
-b       major_0x154e0                                # 15be0
+
+# r1 = kdp
+b       interrupt_blue                               # 15be0
 
 
 
@@ -33283,12 +33344,16 @@ b       major_0x154e0                                # 15be0
 
 /***********************************************************
 
-                    _int_handler_kind_07                    
+                      gossamer_pih_07                       
+
+************************************************************
+
+Gossamer = beige G3. PIH 07 also used for GRX = OldWorld PowerBook G3 Series.
 
 ************************************************************
 
 Xrefs:
-int_handler
+pih_indirect
 
 ************************************************************
 
@@ -33296,7 +33361,7 @@ int_handler
 
 ***********************************************************/
 
-_int_handler_kind_07:  /* < outside referer */
+gossamer_pih_07:  /* < outside referer */
 mr       r8,  r8                                     # 15c00
 mr       r9,  r9                                     # 15c04
 addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15c08
@@ -33313,12 +33378,12 @@ bl      save_registers_from_r20                      # 15c18
 addi     r9,  r1, -0x750 # kdp.-0x750                # 15c1c
 andis.   r8, r11,  0x02                              # 15c20
 mfspr   r30, 275/*sprg3*/                            # 15c24
-bne-    _int_handler_kind_07_0x38                    # 15c28
+bne-    gossamer_pih_07_0x38                         # 15c28
 lwz     r21,  0x0e80( r1) # kdp.0xe80                # 15c2c
 addi    r21, r21,  0x01                              # 15c30
 stw     r21,  0x0e80( r1) # kdp.0xe80                # 15c34
 
-_int_handler_kind_07_0x38:
+gossamer_pih_07_0x38:
 mtspr   275/*sprg3*/,  r9                            # 15c38
 mfmsr   r20                                          # 15c3c
 ori     r23, r20,  0x10                              # 15c40
@@ -33356,30 +33421,32 @@ mtmsr   r20                                          # 15cbc
 isync                                                # 15cc0
 rlwinm. r28, r23,  0, 11, 11                         # 15cc4
 li      r28,  0x07                                   # 15cc8
-bne-    _int_handler_kind_07_0x118                   # 15ccc
+bne-    gossamer_pih_07_0x118                        # 15ccc
 rlwinm  r28, r23,  0, 15, 16                         # 15cd0
 rlwimi. r28, r23,  0, 22, 31                         # 15cd4
 li      r28,  0x04                                   # 15cd8
-bne-    _int_handler_kind_07_0x118                   # 15cdc
+bne-    gossamer_pih_07_0x118                        # 15cdc
 clrlwi. r28, r24,  0x1e                              # 15ce0
 li      r28,  0x04                                   # 15ce4
-bne-    _int_handler_kind_07_0x118                   # 15ce8
+bne-    gossamer_pih_07_0x118                        # 15ce8
 rlwinm. r28, r24,  0, 21, 21                         # 15cec
 li      r28,  0x03                                   # 15cf0
-bne-    _int_handler_kind_07_0x118                   # 15cf4
+bne-    gossamer_pih_07_0x118                        # 15cf4
 andis.  r28, r23,  0x3fea                            # 15cf8
 rlwimi. r28, r23,  0, 17, 20                         # 15cfc
 li      r28,  0x02                                   # 15d00
-bne-    _int_handler_kind_07_0x118                   # 15d04
+bne-    gossamer_pih_07_0x118                        # 15d04
 rlwinm. r28, r24,  0, 20, 20                         # 15d08
 li      r28,  0x01                                   # 15d0c
-bne-    _int_handler_kind_07_0x118                   # 15d10
+bne-    gossamer_pih_07_0x118                        # 15d10
 rlwinm. r28, r23, 14, 31, 31                         # 15d14
 
-_int_handler_kind_07_0x118:
+gossamer_pih_07_0x118:
 mtsrin  r21, r22                                     # 15d18
 isync                                                # 15d1c
-b       major_0x154e0                                # 15d20
+
+# r1 = kdp
+b       interrupt_blue                               # 15d20
 
 
 
@@ -33401,12 +33468,12 @@ b       major_0x154e0                                # 15d20
 
 /***********************************************************
 
-                    _int_handler_kind_10                    
+                       unknown_pih_10                       
 
 ************************************************************
 
 Xrefs:
-int_handler
+pih_indirect
 
 ************************************************************
 
@@ -33414,7 +33481,7 @@ int_handler
 
 ***********************************************************/
 
-_int_handler_kind_10:  /* < outside referer */
+unknown_pih_10:  /* < outside referer */
 mr       r8,  r8                                     # 15d40
 mr       r9,  r9                                     # 15d44
 addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15d48
@@ -33431,12 +33498,12 @@ bl      save_registers_from_r20                      # 15d58
 addi     r9,  r1, -0x750 # kdp.-0x750                # 15d5c
 andis.   r8, r11,  0x02                              # 15d60
 mfspr   r30, 275/*sprg3*/                            # 15d64
-bne-    _int_handler_kind_10_0x38                    # 15d68
+bne-    unknown_pih_10_0x38                          # 15d68
 lwz     r21,  0x0e80( r1) # kdp.0xe80                # 15d6c
 addi    r21, r21,  0x01                              # 15d70
 stw     r21,  0x0e80( r1) # kdp.0xe80                # 15d74
 
-_int_handler_kind_10_0x38:
+unknown_pih_10_0x38:
 mtspr   275/*sprg3*/,  r9                            # 15d78
 lwz     r26, -0x0020( r1) # kdp.irp                  # 15d7c
 mfmsr   r20                                          # 15d80
@@ -33468,21 +33535,23 @@ lis     r25,       0x00                              # 15de4
 ori     r25, r25,  0x3f60                            # 15de8
 li      r28,  0x07                                   # 15dec
 
-_int_handler_kind_10_0xb0:
+unknown_pih_10_0xb0:
 lwz     r26,  0x001c(r25)                            # 15df0
 and.    r26, r24, r26                                # 15df4
-bne-    _int_handler_kind_10_0xd4                    # 15df8
+bne-    unknown_pih_10_0xd4                          # 15df8
 lwzu    r26, -0x0004(r25)                            # 15dfc
 and.    r26, r23, r26                                # 15e00
-bne-    _int_handler_kind_10_0xd4                    # 15e04
+bne-    unknown_pih_10_0xd4                          # 15e04
 addi    r28, r28, -0x01                              # 15e08
 cmplwi  r28,  0x00                                   # 15e0c
-bne+    _int_handler_kind_10_0xb0                    # 15e10
+bne+    unknown_pih_10_0xb0                          # 15e10
 
-_int_handler_kind_10_0xd4:
+unknown_pih_10_0xd4:
 mtsrin  r21, r22                                     # 15e14
 isync                                                # 15e18
-b       major_0x154e0                                # 15e1c
+
+# r1 = kdp
+b       interrupt_blue                               # 15e1c
 
 
 
@@ -33505,12 +33574,16 @@ b       major_0x154e0                                # 15e1c
 
 /***********************************************************
 
-                    _int_handler_kind_04                    
+                      cordyceps_pih_04                      
+
+************************************************************
+
+Cordyceps = early low-end "G2" Power Macs. 603 series processors. PCI. Models 52xx-53xx, 62xx-63xx.
 
 ************************************************************
 
 Xrefs:
-int_handler
+pih_indirect
 
 ************************************************************
 
@@ -33518,7 +33591,7 @@ int_handler
 
 ***********************************************************/
 
-_int_handler_kind_04:  /* < outside referer */
+cordyceps_pih_04:  /* < outside referer */
 mr       r8,  r8                                     # 15e40
 mr       r9,  r9                                     # 15e44
 addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15e48
@@ -33535,12 +33608,12 @@ bl      save_registers_from_r20                      # 15e58
 addi     r9,  r1, -0x750 # kdp.-0x750                # 15e5c
 andis.   r8, r11,  0x02                              # 15e60
 mfspr   r30, 275/*sprg3*/                            # 15e64
-bne-    _int_handler_kind_04_0x38                    # 15e68
+bne-    cordyceps_pih_04_0x38                        # 15e68
 lwz     r21,  0x0e80( r1) # kdp.0xe80                # 15e6c
 addi    r21, r21,  0x01                              # 15e70
 stw     r21,  0x0e80( r1) # kdp.0xe80                # 15e74
 
-_int_handler_kind_04_0x38:
+cordyceps_pih_04_0x38:
 mtspr   275/*sprg3*/,  r9                            # 15e78
 lis     r22,       0x5300                            # 15e7c
 mfmsr   r23                                          # 15e80
@@ -33570,7 +33643,9 @@ isync                                                # 15edc
 mtspr   537/*dbat0l*/, r27                           # 15ee0
 mtspr   536/*dbat0u*/, r26                           # 15ee4
 clrlwi  r28, r28,  0x1d                              # 15ee8
-b       major_0x154e0                                # 15eec
+
+# r1 = kdp
+b       interrupt_blue                               # 15eec
 
 
 
@@ -33589,16 +33664,16 @@ b       major_0x154e0                                # 15eec
 
 /***********************************************************
 
-                    _int_handler_kind_06                    
+                      newworld_pih_06                       
 
 ************************************************************
 
-Used on all NewWorld? Hardcoded in ROM template.
+Trampoline leaves ConfigInfo value unchanged. PIH 06 also specified in Pippin ROM.
 
 ************************************************************
 
 Xrefs:
-int_handler
+pih_indirect
 
 ************************************************************
 
@@ -33606,7 +33681,7 @@ int_handler
 
 ***********************************************************/
 
-_int_handler_kind_06:  /* < outside referer */
+newworld_pih_06:  /* < outside referer */
 mr       r8,  r8                                     # 15f00
 mr       r9,  r9                                     # 15f04
 addi     r8,  r1, -0xb70 # kdp.pih_lock              # 15f08
@@ -33623,12 +33698,12 @@ bl      save_registers_from_r20                      # 15f18
 addi     r9,  r1, -0x750 # kdp.-0x750                # 15f1c
 andis.   r8, r11,  0x02                              # 15f20
 mfspr   r30, 275/*sprg3*/                            # 15f24
-bne-    _int_handler_kind_06_0x38                    # 15f28
+bne-    newworld_pih_06_0x38                         # 15f28
 lwz     r21,  0x0e80( r1) # kdp.0xe80                # 15f2c
 addi    r21, r21,  0x01                              # 15f30
 stw     r21,  0x0e80( r1) # kdp.0xe80                # 15f34
 
-_int_handler_kind_06_0x38:
+newworld_pih_06_0x38:
 mtspr   275/*sprg3*/,  r9                            # 15f38
 mfmsr   r23                                          # 15f3c
 lwz     r20, -0x0020( r1) # kdp.irp                  # 15f40
@@ -33644,38 +33719,38 @@ mtsrin  r24, r22                                     # 15f64
 isync                                                # 15f68
 cmpwi    cr1, r27,  0x00                             # 15f6c
 andis.  r26, r11,  0x02                              # 15f70
-beq-     cr1, _int_handler_kind_06_0x23c             # 15f74
-beq-    _int_handler_kind_06_0x150                   # 15f78
+beq-     cr1, newworld_pih_06_0x23c                  # 15f74
+beq-    newworld_pih_06_0x150                        # 15f78
 lbz     r29,  0x0f93(r20)                            # 15f7c
 stb     r28,  0x0f93(r20)                            # 15f80
 addi    r26,  r1,  0x912 # kdp.0x912                 # 15f84
 cmpwi    cr1, r29,  0x07                             # 15f88
 cmplwi  r27,  0x01                                   # 15f8c
-bne+     cr1, _int_handler_kind_06_0xa8              # 15f90
+bne+     cr1, newworld_pih_06_0xa8                   # 15f90
 addi    r27, r27, -0x01                              # 15f94
-ble-    _int_handler_kind_06_0x1fc                   # 15f98
+ble-    newworld_pih_06_0x1fc                        # 15f98
 lbzx    r26, r26, r27                                # 15f9c
 lbz     r28,  0x3f00(r26)                            # 15fa0
-b       _int_handler_kind_06_0x1fc                   # 15fa4
+b       newworld_pih_06_0x1fc                        # 15fa4
 
-_int_handler_kind_06_0xa8:
+newworld_pih_06_0xa8:
 cmplwi  r27,  0x01                                   # 15fa8
 addi    r27, r27, -0x01                              # 15fac
-ble-    _int_handler_kind_06_0x1fc                   # 15fb0
+ble-    newworld_pih_06_0x1fc                        # 15fb0
 add     r26, r26, r27                                # 15fb4
 addi    r27, r20,  0xf93                             # 15fb8
 lbz     r24,  0x0000(r26)                            # 15fbc
 
-_int_handler_kind_06_0xc0:
+newworld_pih_06_0xc0:
 lbzu    r28, -0x0001(r27)                            # 15fc0
 cmpw    r24, r28                                     # 15fc4
 cmpwi    cr1, r28,  0xfe                             # 15fc8
-beq-    _int_handler_kind_06_0xdc                    # 15fcc
-bne+     cr1, _int_handler_kind_06_0xc0              # 15fd0
+beq-    newworld_pih_06_0xdc                         # 15fcc
+bne+     cr1, newworld_pih_06_0xc0                   # 15fd0
 li      r28, -0x01                                   # 15fd4
-b       _int_handler_kind_06_0x1fc                   # 15fd8
+b       newworld_pih_06_0x1fc                        # 15fd8
 
-_int_handler_kind_06_0xdc:
+newworld_pih_06_0xdc:
 li      r28,  0xff                                   # 15fdc
 stb     r28,  0x0000(r27)                            # 15fe0
 addi    r27, r20,  0xf28                             # 15fe4
@@ -33701,14 +33776,14 @@ isync                                                # 16030
 lhz     r27,  0x0910( r1) # kdp.0x910                # 16034
 cmpwi   r26,  0xff                                   # 16038
 addi    r27, r27, -0x01                              # 1603c
-beq+    _int_handler_kind_06_0x148                   # 16040
+beq+    newworld_pih_06_0x148                        # 16040
 lbz     r28,  0x3f00(r26)                            # 16044
 
-_int_handler_kind_06_0x148:
+newworld_pih_06_0x148:
 sth     r27,  0x0910( r1) # kdp.0x910                # 16048
-b       _int_handler_kind_06_0x1fc                   # 1604c
+b       newworld_pih_06_0x1fc                        # 1604c
 
-_int_handler_kind_06_0x150:
+newworld_pih_06_0x150:
 lhz     r27,  0x0f88(r20)                            # 16050
 ori     r20, r23,  0x10                              # 16054
 lis     r26,       0x02                              # 16058
@@ -33720,25 +33795,25 @@ clrlwi  r26, r26,  0x14                              # 1606c
 cmplwi  r26,  0x40                                   # 16070
 cmplwi   cr1, r26,  0x41                             # 16074
 li      r29,  0x00                                   # 16078
-beq-    _int_handler_kind_06_0x208                   # 1607c
-bge-     cr1, _int_handler_kind_06_0x218             # 16080
+beq-    newworld_pih_06_0x208                        # 1607c
+bge-     cr1, newworld_pih_06_0x218                  # 16080
 cmplw   r26, r27                                     # 16084
 lis     r27,       0x02                              # 16088
 ori     r27, r27,  0xb0                              # 1608c
-bne+    _int_handler_kind_06_0x198                   # 16090
+bne+    newworld_pih_06_0x198                        # 16090
 stwx    r29, r22, r27                                # 16094
 
-_int_handler_kind_06_0x198:
+newworld_pih_06_0x198:
 mtmsr   r23                                          # 16098
 isync                                                # 1609c
 lwz     r20, -0x0020( r1) # kdp.irp                  # 160a0
 lbz     r28,  0x3f00(r26)                            # 160a4
 cmpwi   r28,  0x07                                   # 160a8
-bne+    _int_handler_kind_06_0x1b8                   # 160ac
+bne+    newworld_pih_06_0x1b8                        # 160ac
 stb     r28,  0x0f93(r20)                            # 160b0
-b       _int_handler_kind_06_0x1fc                   # 160b4
+b       newworld_pih_06_0x1fc                        # 160b4
 
-_int_handler_kind_06_0x1b8:
+newworld_pih_06_0x1b8:
 lhz     r27,  0x0910( r1) # kdp.0x910                # 160b8
 add     r24, r27,  r1                                # 160bc
 addi    r27, r27,  0x01                              # 160c0
@@ -33757,18 +33832,20 @@ stw     r25,  0x0000(r27)                            # 160f0
 addi    r27, r20,  0xf8c                             # 160f4
 stbx    r24, r28, r27                                # 160f8
 
-_int_handler_kind_06_0x1fc:
+newworld_pih_06_0x1fc:
 mtsrin  r21, r22                                     # 160fc
 isync                                                # 16100
-b       major_0x154e0                                # 16104
 
-_int_handler_kind_06_0x208:
+# r1 = kdp
+b       interrupt_blue                               # 16104
+
+newworld_pih_06_0x208:
 mtmsr   r23                                          # 16108
 isync                                                # 1610c
 li      r28, -0x01                                   # 16110
-b       _int_handler_kind_06_0x1fc                   # 16114
+b       newworld_pih_06_0x1fc                        # 16114
 
-_int_handler_kind_06_0x218:
+newworld_pih_06_0x218:
 lis     r27,       0x02                              # 16118
 ori     r27, r27,  0xb0                              # 1611c
 li      r29,  0x00                                   # 16120
@@ -33777,9 +33854,9 @@ eieio                                                # 16128
 mtmsr   r23                                          # 1612c
 isync                                                # 16130
 li      r28, -0x01                                   # 16134
-b       _int_handler_kind_06_0x1fc                   # 16138
+b       newworld_pih_06_0x1fc                        # 16138
 
-_int_handler_kind_06_0x23c:
+newworld_pih_06_0x23c:
 addi    r27, r27,  0x01                              # 1613c
 li      r28, -0x01                                   # 16140
 sth     r27,  0x0910( r1) # kdp.0x910                # 16144
@@ -33788,7 +33865,7 @@ stw     r28,  0x0f90(r20)                            # 1614c
 xoris   r28, r28,  0x100                             # 16150
 stw     r28,  0x0f8c(r20)                            # 16154
 li      r28,  0x00                                   # 16158
-b       _int_handler_kind_06_0x1fc                   # 1615c
+b       newworld_pih_06_0x1fc                        # 1615c
 
 
 
@@ -33811,12 +33888,12 @@ b       _int_handler_kind_06_0x1fc                   # 1615c
 
 /***********************************************************
 
-                    _int_handler_kind_08                    
+                       unknown_pih_08                       
 
 ************************************************************
 
 Xrefs:
-int_handler
+pih_indirect
 
 ************************************************************
 
@@ -33824,7 +33901,7 @@ int_handler
 
 ***********************************************************/
 
-_int_handler_kind_08:  /* < outside referer */
+unknown_pih_08:  /* < outside referer */
 mr       r8,  r8                                     # 16180
 mr       r9,  r9                                     # 16184
 addi     r8,  r1, -0xb70 # kdp.pih_lock              # 16188
@@ -33841,12 +33918,12 @@ bl      save_registers_from_r20                      # 16198
 addi     r9,  r1, -0x750 # kdp.-0x750                # 1619c
 andis.   r8, r11,  0x02                              # 161a0
 mfspr   r30, 275/*sprg3*/                            # 161a4
-bne-    _int_handler_kind_08_0x38                    # 161a8
+bne-    unknown_pih_08_0x38                          # 161a8
 lwz     r21,  0x0e80( r1) # kdp.0xe80                # 161ac
 addi    r21, r21,  0x01                              # 161b0
 stw     r21,  0x0e80( r1) # kdp.0xe80                # 161b4
 
-_int_handler_kind_08_0x38:
+unknown_pih_08_0x38:
 mtspr   275/*sprg3*/,  r9                            # 161b8
 mfmsr   r23                                          # 161bc
 lwz     r20, -0x0020( r1) # kdp.irp                  # 161c0
@@ -33862,10 +33939,10 @@ mtsrin  r24, r22                                     # 161e4
 isync                                                # 161e8
 cmpwi    cr1, r27,  0x00                             # 161ec
 andis.  r26, r11,  0x02                              # 161f0
-beq-     cr1, _int_handler_kind_08_0x23c             # 161f4
-beq-    _int_handler_kind_08_0x170                   # 161f8
+beq-     cr1, unknown_pih_08_0x23c                   # 161f4
+beq-    unknown_pih_08_0x170                         # 161f8
 cmplwi  r27,  0x01                                   # 161fc
-ble-    _int_handler_kind_08_0x1f8                   # 16200
+ble-    unknown_pih_08_0x1f8                         # 16200
 addi    r27, r27, -0x01                              # 16204
 addi    r26,  r1,  0x912 # kdp.0x912                 # 16208
 add     r26, r26, r27                                # 1620c
@@ -33873,48 +33950,48 @@ addi    r27, r20,  0xee0                             # 16210
 lbz     r24,  0x0000(r26)                            # 16214
 mr      r29, r24                                     # 16218
 cmpwi   r24,  0x20                                   # 1621c
-blt+    _int_handler_kind_08_0xac                    # 16220
+blt+    unknown_pih_08_0xac                          # 16220
 addi    r27, r27,  0x04                              # 16224
 addi    r24, r24, -0x20                              # 16228
 
-_int_handler_kind_08_0xac:
+unknown_pih_08_0xac:
 lwz     r27,  0x0000(r27)                            # 1622c
 lis     r28,      -0x8000                            # 16230
 srw     r28, r28, r24                                # 16234
 and.    r27, r27, r28                                # 16238
-bne-    _int_handler_kind_08_0xc8                    # 1623c
+bne-    unknown_pih_08_0xc8                          # 1623c
 li      r28, -0x01                                   # 16240
-b       _int_handler_kind_08_0x1f8                   # 16244
+b       unknown_pih_08_0x1f8                         # 16244
 
-_int_handler_kind_08_0xc8:
+unknown_pih_08_0xc8:
 addi    r27, r20,  0xec4                             # 16248
 cmpwi   r29,  0x20                                   # 1624c
-blt+    _int_handler_kind_08_0xd8                    # 16250
+blt+    unknown_pih_08_0xd8                          # 16250
 addi    r27, r27,  0x04                              # 16254
 
-_int_handler_kind_08_0xd8:
+unknown_pih_08_0xd8:
 lwz     r24,  0x0000(r27)                            # 16258
 andc    r24, r24, r28                                # 1625c
 stw     r24,  0x0000(r27)                            # 16260
 addi    r27, r20,  0xee0                             # 16264
 cmpwi   r29,  0x20                                   # 16268
-blt+    _int_handler_kind_08_0xf4                    # 1626c
+blt+    unknown_pih_08_0xf4                          # 1626c
 addi    r27, r27,  0x04                              # 16270
 
-_int_handler_kind_08_0xf4:
+unknown_pih_08_0xf4:
 lwz     r29,  0x0000(r27)                            # 16274
 andc    r29, r29, r28                                # 16278
 stw     r29,  0x0000(r27)                            # 1627c
 addi    r26, r26, -0x01                              # 16280
 lbz     r26,  0x0000(r26)                            # 16284
 cmpwi   r26,  0xff                                   # 16288
-beq-    _int_handler_kind_08_0x114                   # 1628c
-b       _int_handler_kind_08_0x118                   # 16290
+beq-    unknown_pih_08_0x114                         # 1628c
+b       unknown_pih_08_0x118                         # 16290
 
-_int_handler_kind_08_0x114:
+unknown_pih_08_0x114:
 li      r26,  0x800                                  # 16294
 
-_int_handler_kind_08_0x118:
+unknown_pih_08_0x118:
 ori     r28, r23,  0x10                              # 16298
 lis     r27,       0x02                              # 1629c
 ori     r27, r27,  0xb0                              # 162a0
@@ -33924,7 +34001,7 @@ li      r28,  0x00                                   # 162ac
 stwx    r28, r22, r27                                # 162b0
 eieio                                                # 162b4
 cmpwi   r26,  0x800                                  # 162b8
-beq-    _int_handler_kind_08_0x158                   # 162bc
+beq-    unknown_pih_08_0x158                         # 162bc
 lis     r28,       0x01                              # 162c0
 ori     r28, r28,  0x00                              # 162c4
 rlwinm  r27, r26,  5, 16, 31                         # 162c8
@@ -33932,15 +34009,15 @@ add     r28, r28, r27                                # 162cc
 lwbrx   r28, r22, r28                                # 162d0
 rlwinm  r28, r28, 16, 28, 31                         # 162d4
 
-_int_handler_kind_08_0x158:
+unknown_pih_08_0x158:
 mtmsr   r23                                          # 162d8
 isync                                                # 162dc
 lhz     r27,  0x0910( r1) # kdp.0x910                # 162e0
 addi    r27, r27, -0x01                              # 162e4
 sth     r27,  0x0910( r1) # kdp.0x910                # 162e8
-b       _int_handler_kind_08_0x1f8                   # 162ec
+b       unknown_pih_08_0x1f8                         # 162ec
 
-_int_handler_kind_08_0x170:
+unknown_pih_08_0x170:
 ori     r27, r23,  0x10                              # 162f0
 lis     r26,       0x02                              # 162f4
 ori     r26, r26, 160                                # 162f8
@@ -33952,8 +34029,8 @@ lwbrx   r26, r22, r26                                # 1630c
 clrlwi  r26, r26,  0x14                              # 16310
 cmplwi  r26,  0x31                                   # 16314
 cmplwi   cr1, r26,  0x28                             # 16318
-beq-    _int_handler_kind_08_0x204                   # 1631c
-bge-     cr1, _int_handler_kind_08_0x214             # 16320
+beq-    unknown_pih_08_0x204                         # 1631c
+bge-     cr1, unknown_pih_08_0x214                   # 16320
 rlwinm  r27, r26,  5, 16, 31                         # 16324
 add     r28, r28, r27                                # 16328
 lwbrx   r28, r22, r28                                # 1632c
@@ -33967,29 +34044,31 @@ stb     r26,  0x0912(r24)                            # 16348
 sth     r27,  0x0910( r1) # kdp.0x910                # 1634c
 addi    r27, r20,  0xec4                             # 16350
 cmpwi   r26,  0x20                                   # 16354
-blt+    _int_handler_kind_08_0x1e4                   # 16358
+blt+    unknown_pih_08_0x1e4                         # 16358
 addi    r27, r27,  0x04                              # 1635c
 addi    r26, r26, -0x20                              # 16360
 
-_int_handler_kind_08_0x1e4:
+unknown_pih_08_0x1e4:
 lwz     r25,  0x0000(r27)                            # 16364
 lis     r24,      -0x8000                            # 16368
 srw     r24, r24, r26                                # 1636c
 or      r25, r25, r24                                # 16370
 stw     r25,  0x0000(r27)                            # 16374
 
-_int_handler_kind_08_0x1f8:
+unknown_pih_08_0x1f8:
 mtsrin  r21, r22                                     # 16378
 isync                                                # 1637c
-b       major_0x154e0                                # 16380
 
-_int_handler_kind_08_0x204:
+# r1 = kdp
+b       interrupt_blue                               # 16380
+
+unknown_pih_08_0x204:
 mtmsr   r23                                          # 16384
 isync                                                # 16388
 li      r28, -0x01                                   # 1638c
-b       _int_handler_kind_08_0x1f8                   # 16390
+b       unknown_pih_08_0x1f8                         # 16390
 
-_int_handler_kind_08_0x214:
+unknown_pih_08_0x214:
 lis     r27,       0x02                              # 16394
 ori     r27, r27,  0xb0                              # 16398
 li      r29,  0x00                                   # 1639c
@@ -33999,9 +34078,9 @@ mtmsr   r23                                          # 163a8
 isync                                                # 163ac
 li      r28,  0x06                                   # 163b0
 li      r28, -0x01                                   # 163b4
-b       _int_handler_kind_08_0x1f8                   # 163b8
+b       unknown_pih_08_0x1f8                         # 163b8
 
-_int_handler_kind_08_0x23c:
+unknown_pih_08_0x23c:
 addi    r27, r27,  0x01                              # 163bc
 li      r28, -0x01                                   # 163c0
 sth     r27,  0x0910( r1) # kdp.0x910                # 163c4
@@ -34009,7 +34088,7 @@ stw     r28,  0x0912( r1) # kdp.0x912                # 163c8
 li      r28,  0x00                                   # 163cc
 stw     r28,  0x0ee4(r20)                            # 163d0
 stw     r28,  0x0ee0(r20)                            # 163d4
-b       _int_handler_kind_08_0x1f8                   # 163d8
+b       unknown_pih_08_0x1f8                         # 163d8
 
 
 
@@ -34064,7 +34143,7 @@ say_nanodebugger_activated
 say_starting_timeslicing
 init_rdyqs
 major_0x14bcc
-dbgr
+panic
 print_xpt_info
 print_sprgs
 print_sprs
@@ -34229,7 +34308,7 @@ cmpwi    cr1, r30,  0x00                             # 165b4
 li      r30,  0x00                                   # 165b8
 bne+     cr1, print_0x1e8                            # 165bc
 mflr    r30                                          # 165c0
-bl      dbgr                                         # 165c4
+bl      panic                                        # 165c4
 
 print_0x1e8:
 stw     r30, -0x0af0( r1)                            # 165c8
@@ -34453,7 +34532,7 @@ isync                                                # 16878
 print_0x49c:
 b       print_0x140                                  # 1687c
 
-print_for_dbgr:  /* < outside referer */
+print_for_panic:  /* < outside referer */
 mfspr    r1, 272/*sprg0*/                            # 16880
 stmw    r24, -0x0108( r1)                            # 16884
 mflr    r24                                          # 16888
@@ -35332,14 +35411,14 @@ blr                                                  # 172cc
 
 /***********************************************************
 
-                            dbgr                            
+                           panic                            
 
 ************************************************************
 
 Xrefs:
 "lisori_caller"
-_dbgr_0x02940
-_dbgr_0x02960
+panic_wrapper_0x02940
+panic_wrapper_0x02960
 major_0x02ccc
 major_0x03200
 major_0x035a0
@@ -35347,12 +35426,12 @@ major_0x03940
 dsi_vector
 major_0x04240
 major_0x04300
-_dbgr_0x04c00
+panic_wrapper_0x04c00
 funny_debug_place
 major_0x07658
-_dbgr_0x08620
+panic_wrapper_0x08620
 major_0x08794
-_dbgr_0x0a620
+panic_wrapper_0x0a620
 rtas_call
 major_0x0af14
 syscall_return_assert_lock_unheld
@@ -35368,13 +35447,13 @@ nk_yield_with_hint
 major_0x0bc2c
 NKStopScheduling
 major_0x0c3ac
-_dbgr_0x0c5d4
+panic_wrapper_0x0c5d4
 major_0x0d35c
 major_0x0d798
-_dbgr_0x0e280
+panic_wrapper_0x0e280
 major_0x0e604
 NKThrowException
-_dbgr_0x0f380
+panic_wrapper_0x0f380
 major_0x0f7b8
 major_0x0fb34
 createarea
@@ -35400,25 +35479,25 @@ major_0x11ebc
 major_0x11fac
 major_0x12110
 major_0x12248
-_dbgr_0x12780
+panic_wrapper_0x12780
 major_0x129cc
-_dbgr_0x12d40
-_dbgr_0x137c0
+panic_wrapper_0x12d40
+panic_wrapper_0x137c0
 major_0x142dc
 major_0x14548
 major_0x14bcc
-_dbgr_0x15140
-major_0x154e0
+panic_wrapper_0x15140
+interrupt_blue
 print
 
 ***********************************************************/
 
-dbgr:  /* < outside referer */
+panic:  /* < outside referer */
 crset   4*cr1 + eq                                   # 172e0
-b       dbgr_0xc                                     # 172e4
+b       panic_0xc                                    # 172e4
 .long   0x4cc63182                                   # 172e8
 
-dbgr_0xc:
+panic_0xc:
 mfspr    r1, 272/*sprg0*/                            # 172ec
 stmw    r29, -0x02e0( r1)                            # 172f0
 lwz      r1, -0x0004( r1)                            # 172f4
@@ -35443,11 +35522,11 @@ mfcr     r0                                          # 17334
 stw      r0,  0x0780( r1)                            # 17338
 mfspr    r0, 287/*pvr*/                              # 1733c
 rlwinm.  r0,  r0,  0,  0, 14                         # 17340
-bne-    dbgr_0x70                                    # 17344
+bne-    panic_0x70                                   # 17344
 mfspr    r0, 0/*mq*/                                 # 17348
 stw      r0,  0x0784( r1)                            # 1734c
 
-dbgr_0x70:
+panic_0x70:
 mfxer    r0                                          # 17350
 stw      r0,  0x0788( r1)                            # 17354
 mfspr    r0, 274/*sprg2*/                            # 17358
@@ -35462,28 +35541,28 @@ mfspr    r0, 19/*dar*/                               # 17378
 stw      r0,  0x079c( r1)                            # 1737c
 mfspr    r0, 287/*pvr*/                              # 17380
 rlwinm.  r0,  r0,  0,  0, 14                         # 17384
-bne-    dbgr_0xcc                                    # 17388
+bne-    panic_0xcc                                   # 17388
 
-dbgr_0xac:
+panic_0xac:
 mfspr    r0, 4/*rtcu*/                               # 1738c
 mfspr    r2, 5/*rtcl*/                               # 17390
 mfspr    r3, 4/*rtcu*/                               # 17394
 cmpw     r0,  r3                                     # 17398
-bne+    dbgr_0xac                                    # 1739c
+bne+    panic_0xac                                   # 1739c
 stw      r0,  0x07a0( r1)                            # 173a0
 stw      r2,  0x07a4( r1)                            # 173a4
-b       dbgr_0xe8                                    # 173a8
+b       panic_0xe8                                   # 173a8
 
-dbgr_0xcc:
+panic_0xcc:
 mftbu    r0                                          # 173ac
 mftb     r2,  0x10c                                  # 173b0
 mftbu    r3                                          # 173b4
 cmpw     r0,  r3                                     # 173b8
-bne+    dbgr_0xcc                                    # 173bc
+bne+    panic_0xcc                                   # 173bc
 stw      r0,  0x07a0( r1)                            # 173c0
 stw      r2,  0x07a4( r1)                            # 173c4
 
-dbgr_0xe8:
+panic_0xe8:
 mfspr    r0, 22/*dec*/                               # 173c8
 stw      r0,  0x07a8( r1)                            # 173cc
 mfspr    r0, 1008/*hid0*/                            # 173d0
@@ -35568,22 +35647,22 @@ mffs    f31                                          # 17508
 lwz      r0,  0x08fc( r1)                            # 1750c
 stfd    f31,  0x08fc( r1)                            # 17510
 stw      r0,  0x08fc( r1)                            # 17514
-bne-     cr1, dbgr_0x260                             # 17518
+bne-     cr1, panic_0x260                            # 17518
 
-dbgr_0x23c:
+panic_0x23c:
 lwz      r1,  0x0000( r0)                            # 1751c
 addi     r1,  r1,  0x01                              # 17520
 stw      r1,  0x0000( r0)                            # 17524
 li       r1,  0x00                                   # 17528
 dcbst    r1,  r1                                     # 1752c
-bl      print_for_dbgr                               # 17530
+bl      print_for_panic                              # 17530
 
 #   gets kdp from print!!!
 cmpwi    r8, -0x01                                   # 17534
-bne-    dbgr_0x260                                   # 17538
-b       dbgr_0x23c                                   # 1753c
+bne-    panic_0x260                                  # 17538
+b       panic_0x23c                                  # 1753c
 
-dbgr_0x260:
+panic_0x260:
 lwz      r8,  0x0edc( r1) # kdp.0xedc                # 17540
 ori      r8,  r8,  0x02                              # 17544
 stw      r8,  0x0edc( r1) # kdp.0xedc                # 17548
@@ -35594,7 +35673,7 @@ bl      1f                                           # 1754c
 1: mflr  r8                                          # 1756c
 bl      print_string                                 # 17570
 
-dbgr_prompt:
+panic_prompt:
 bl      1f                                           # 17574
 .ascii  "\xBD "                                      # 17578
 .short  0                                            # 1757a
@@ -35604,15 +35683,15 @@ bl      print_string                                 # 17580
 li      r17,  0x00                                   # 17584
 stw     r17, -0x08fc( r1) # kdp.-0x8fc               # 17588
 
-dbgr_0x2ac:
-bl      print_for_dbgr                               # 1758c
+panic_0x2ac:
+bl      print_for_panic                              # 1758c
 cmpwi    r8, -0x01                                   # 17590
-beq+    dbgr_0x2ac                                   # 17594
+beq+    panic_0x2ac                                  # 17594
 mr      r16,  r8                                     # 17598
 cmpwi   r16,  0x08                                   # 1759c
 cmpwi    cr1, r17,  0x00                             # 175a0
-bne-    dbgr_0x2ec                                   # 175a4
-ble+     cr1, dbgr_0x2ac                             # 175a8
+bne-    panic_0x2ec                                  # 175a4
+ble+     cr1, panic_0x2ac                            # 175a8
 addi    r17, r17, -0x01                              # 175ac
 li       r8,  0x08                                   # 175b0
 bl      print_char                                   # 175b4
@@ -35620,30 +35699,30 @@ li       r8,  0x20                                   # 175b8
 bl      print_char                                   # 175bc
 li       r8,  0x08                                   # 175c0
 bl      print_char                                   # 175c4
-b       dbgr_0x2ac                                   # 175c8
+b       panic_0x2ac                                  # 175c8
 
-dbgr_0x2ec:
+panic_0x2ec:
 cmpwi    cr2, r17,  0x5f                             # 175cc
 addi    r18,  r1, -0x960 # kdp.-0x960                # 175d0
-blt-     cr2, dbgr_0x31c                             # 175d4
+blt-     cr2, panic_0x31c                            # 175d4
 bl      1f                                           # 175d8
 .ascii  "^b"                                         # 175dc
 .short  0                                            # 175de
 .align  2                                            # 175e0
 1: mflr  r8                                          # 175e0
 bl      print_string                                 # 175e4
-b       dbgr_0x2ac                                   # 175e8
+b       panic_0x2ac                                  # 175e8
 
-dbgr_0x30c:
+panic_0x30c:
 addi    r17, r17,  0x01                              # 175ec
 mr       r8, r16                                     # 175f0
 bl      print_char                                   # 175f4
-b       dbgr_0x2ac                                   # 175f8
+b       panic_0x2ac                                  # 175f8
 
-dbgr_0x31c:
+panic_0x31c:
 cmpwi   r16,  0x0d                                   # 175fc
 stbx    r16, r17, r18                                # 17600
-bne+    dbgr_0x30c                                   # 17604
+bne+    panic_0x30c                                  # 17604
 li      r16,  0x00                                   # 17608
 stbx    r16, r17, r18                                # 1760c
 bl      1f                                           # 17610
@@ -35660,10 +35739,10 @@ bl      next_cmd_word                                # 17624
 # r16 = char
 
 cmpwi   r16,  0x00                                   # 17628
-beq+    dbgr_prompt                                  # 1762c
-bl      dbgr_load_commands                           # 17630
+beq+    panic_prompt                                 # 1762c
+bl      panic_load_commands                          # 17630
 mflr    r16                                          # 17634
-bl      load_dbgr_tbl                                # 17638
+bl      load_panic_tbl                               # 17638
 mflr    r17                                          # 1763c
 
 # r16 = command strings
@@ -35672,24 +35751,24 @@ bl      cmd_lookup                                   # 17640
 # cr0 = found
 # r17 = ptr to lut entry
 
-bne-    dbgr_bad_command                             # 17644
-bl      load_dbgr_tbl                                # 17648
+bne-    panic_bad_command                            # 17644
+bl      load_panic_tbl                               # 17648
 mflr    r16                                          # 1764c
 lwz     r17,  0x0000(r17)                            # 17650
 add     r16, r16, r17                                # 17654
 mtlr    r16                                          # 17658
 blr                                                  # 1765c
 
-dbgr_bad_command:
+panic_bad_command:
 bl      1f                                           # 17660
 .ascii  "???^n"                                      # 17664
 .short  0                                            # 17669
 .align  2                                            # 1766b
 1: mflr  r8                                          # 1766c
 bl      print_string                                 # 17670
-b       dbgr_prompt                                  # 17674
+b       panic_prompt                                 # 17674
 
-dbgr_load_commands:
+panic_load_commands:
 blrl                                                 # 17678
 .ascii  "dm\x00"                                     # 1767c
 .ascii  "dml\x00"                                    # 1767f
@@ -35702,18 +35781,18 @@ blrl                                                 # 17678
 .byte   0xff                                         # 17695
 .align  2                                            # 17696
 
-load_dbgr_tbl:
+load_panic_tbl:
 blrl                                                 # 17698
 
-dbgr_tbl:
-.long   cmd_dumpmem_physical - dbgr_tbl              # 1769c
-.long   cmd_dumpmem_logical - dbgr_tbl               # 176a0
-.long   cmd_goto - dbgr_tbl                          # 176a4
-.long   cmd_opaque_id_info - dbgr_tbl                # 176a8
-.long   cmd_display_kern_data - dbgr_tbl             # 176ac
-.long   cmd_dump_registers - dbgr_tbl                # 176b0
-.long   cmd_help - dbgr_tbl                          # 176b4
-.long   cmd_help - dbgr_tbl                          # 176b8
+panic_tbl:
+.long   cmd_dumpmem_physical - panic_tbl             # 1769c
+.long   cmd_dumpmem_logical - panic_tbl              # 176a0
+.long   cmd_goto - panic_tbl                         # 176a4
+.long   cmd_opaque_id_info - panic_tbl               # 176a8
+.long   cmd_display_kern_data - panic_tbl            # 176ac
+.long   cmd_dump_registers - panic_tbl               # 176b0
+.long   cmd_help - panic_tbl                         # 176b4
+.long   cmd_help - panic_tbl                         # 176b8
 .long   0                                            # 176bc
 
 cmd_help:
@@ -35765,7 +35844,7 @@ bl      1f                                           # 17850
 .align  2                                            # 17880
 1: mflr  r8                                          # 17880
 bl      print_string                                 # 17884
-b       dbgr_prompt                                  # 17888
+b       panic_prompt                                 # 17888
 
 cmd_dumpmem_physical:
 # r15 = start
@@ -35774,9 +35853,9 @@ bl      next_cmd_word                                # 1788c
 # r16 = char
 
 cmpwi   r16,  0x00                                   # 17890
-beq-    dbgr_missing_physical_addr                   # 17894
+beq-    panic_missing_physical_addr                  # 17894
 bl      major_0x187b0                                # 17898
-bne-    dbgr_bad_length_1                            # 1789c
+bne-    panic_bad_length_1                           # 1789c
 mr      r30, r16                                     # 178a0
 li      r31,  0x10                                   # 178a4
 
@@ -35786,36 +35865,36 @@ bl      next_cmd_word                                # 178a8
 # r16 = char
 
 cmpwi   r16,  0x00                                   # 178ac
-beq-    dbgr_0x5e0                                   # 178b0
+beq-    panic_0x5e0                                  # 178b0
 bl      major_0x187b0                                # 178b4
-bne-    dbgr_bad_length_1                            # 178b8
+bne-    panic_bad_length_1                           # 178b8
 mr      r31, r16                                     # 178bc
 
-dbgr_0x5e0:
+panic_0x5e0:
 addi    r31, r31,  0x03                              # 178c0
 rlwinm  r31, r31,  0,  0, 29                         # 178c4
 mr      r16, r30                                     # 178c8
 mr      r17, r31                                     # 178cc
 bl      print_memory                                 # 178d0
-b       dbgr_prompt                                  # 178d4
+b       panic_prompt                                 # 178d4
 
-dbgr_missing_physical_addr:
+panic_missing_physical_addr:
 bl      1f                                           # 178d8
 .ascii  "Need a physical address^n"                  # 178dc
 .short  0                                            # 178f5
 .align  2                                            # 178f7
 1: mflr  r8                                          # 178f8
 bl      print_string                                 # 178fc
-b       dbgr_prompt                                  # 17900
+b       panic_prompt                                 # 17900
 
-dbgr_bad_length_1:
+panic_bad_length_1:
 bl      1f                                           # 17904
 .ascii  "Length must be a hexadecimal value^n"       # 17908
 .short  0                                            # 1792c
 .align  2                                            # 1792e
 1: mflr  r8                                          # 17930
 bl      print_string                                 # 17934
-b       dbgr_prompt                                  # 17938
+b       panic_prompt                                 # 17938
 
 cmd_dumpmem_logical:
 bl      1f                                           # 1793c
@@ -35831,9 +35910,9 @@ bl      next_cmd_word                                # 1795c
 # r16 = char
 
 cmpwi   r16,  0x00                                   # 17960
-beq-    dbgr_missing_logical_addr                    # 17964
+beq-    panic_missing_logical_addr                   # 17964
 bl      major_0x187b0                                # 17968
-bne-    dbgr_bad_length_2                            # 1796c
+bne-    panic_bad_length_2                           # 1796c
 mr      r30, r16                                     # 17970
 li      r31,  0x10                                   # 17974
 
@@ -35843,36 +35922,36 @@ bl      next_cmd_word                                # 17978
 # r16 = char
 
 cmpwi   r16,  0x00                                   # 1797c
-beq-    dbgr_0x6b0                                   # 17980
+beq-    panic_0x6b0                                  # 17980
 bl      major_0x187b0                                # 17984
-bne-    dbgr_bad_length_2                            # 17988
+bne-    panic_bad_length_2                           # 17988
 mr      r31, r16                                     # 1798c
 
-dbgr_0x6b0:
+panic_0x6b0:
 addi    r31, r31,  0x03                              # 17990
 rlwinm  r31, r31,  0,  0, 29                         # 17994
 mr      r16, r30                                     # 17998
 mr      r17, r31                                     # 1799c
 bl      print_memory_logical                         # 179a0
-b       dbgr_prompt                                  # 179a4
+b       panic_prompt                                 # 179a4
 
-dbgr_missing_logical_addr:
+panic_missing_logical_addr:
 bl      1f                                           # 179a8
 .ascii  "Need a logical address^n"                   # 179ac
 .short  0                                            # 179c4
 .align  2                                            # 179c6
 1: mflr  r8                                          # 179c8
 bl      print_string                                 # 179cc
-b       dbgr_prompt                                  # 179d0
+b       panic_prompt                                 # 179d0
 
-dbgr_bad_length_2:
+panic_bad_length_2:
 bl      1f                                           # 179d4
 .ascii  "Length must be a hexadecimal value^n"       # 179d8
 .short  0                                            # 179fc
 .align  2                                            # 179fe
 1: mflr  r8                                          # 17a00
 bl      print_string                                 # 17a04
-b       dbgr_prompt                                  # 17a08
+b       panic_prompt                                 # 17a08
 
 cmd_goto:
 # r15 = start
@@ -35882,12 +35961,12 @@ bl      next_cmd_word                                # 17a0c
 
 cmpwi   r16,  0x00                                   # 17a10
 lwz     r31,  0x0904( r1) # kdp.0x904                # 17a14
-beq-    dbgr_0x748                                   # 17a18
+beq-    panic_0x748                                  # 17a18
 bl      major_0x187b0                                # 17a1c
-bne-    dbgr_bad_resume_address                      # 17a20
+bne-    panic_bad_resume_address                     # 17a20
 stw     r16,  0x0904( r1) # kdp.0x904                # 17a24
 
-dbgr_0x748:
+panic_0x748:
 bl      1f                                           # 17a28
 .ascii  "Resuming at "                               # 17a2c
 .short  0                                            # 17a38
@@ -35909,23 +35988,23 @@ sync                                                 # 17a78
 lwz      r9, -0x0b30( r1) # kdp.thud_lock            # 17a7c
 cmpwi    cr1,  r9,  0x00                             # 17a80
 li       r9,  0x00                                   # 17a84
-bne+     cr1, dbgr_0x7b4                             # 17a88
+bne+     cr1, panic_0x7b4                            # 17a88
 mflr     r9                                          # 17a8c
-bl      dbgr                                         # 17a90
+bl      panic                                        # 17a90
 
-dbgr_0x7b4:
+panic_0x7b4:
 stw      r9, -0x0b30( r1) # kdp.thud_lock            # 17a94
 mtlr     r8                                          # 17a98
 blr                                                  # 17a9c
 
-dbgr_bad_resume_address:
+panic_bad_resume_address:
 bl      1f                                           # 17aa0
 .ascii  "Need hexadecimal value for resume address^n"
 .short  0                                            # 17acf
 .align  2                                            # 17ad1
 1: mflr  r8                                          # 17ad4
 bl      print_string                                 # 17ad8
-b       dbgr_prompt                                  # 17adc
+b       panic_prompt                                 # 17adc
 
 cmd_opaque_id_info:
 # r15 = start
@@ -35934,8 +36013,8 @@ bl      next_cmd_word                                # 17ae0
 # r16 = char
 
 cmpwi   r16,  0x00                                   # 17ae4
-beq-    dbgr_missing_opaque_id                       # 17ae8
-bl      dbgr_load_id_args                            # 17aec
+beq-    panic_missing_opaque_id                      # 17ae8
+bl      panic_load_id_args                           # 17aec
 mflr    r16                                          # 17af0
 li      r17,  0x00                                   # 17af4
 
@@ -35945,44 +36024,44 @@ bl      cmd_lookup                                   # 17af8
 # cr0 = found
 # r17 = ptr to lut entry
 
-bne-    dbgr_0x884                                   # 17afc
+bne-    panic_0x884                                  # 17afc
 li      r29,  0x00                                   # 17b00
 li      r30,  0x00                                   # 17b04
 srwi    r31, r17,  2                                 # 17b08
 
-dbgr_0x82c:
+panic_0x82c:
 mr       r8, r30                                     # 17b0c
 mr       r9, r31                                     # 17b10
 bl      major_0x153e0                                # 17b14
 mr.     r30,  r8                                     # 17b18
-beq-    dbgr_0x868                                   # 17b1c
+beq-    panic_0x868                                  # 17b1c
 mr       r8,  r8                                     # 17b20
 bl      print_hexword_spc                            # 17b24
 addi    r29, r29,  0x01                              # 17b28
 andi.   r29, r29,  0x07                              # 17b2c
-bne+    dbgr_0x82c                                   # 17b30
+bne+    panic_0x82c                                  # 17b30
 bl      1f                                           # 17b34
 .ascii  "^n"                                         # 17b38
 .short  0                                            # 17b3a
 .align  2                                            # 17b3c
 1: mflr  r8                                          # 17b3c
 bl      print_string                                 # 17b40
-b       dbgr_0x82c                                   # 17b44
+b       panic_0x82c                                  # 17b44
 
-dbgr_0x868:
+panic_0x868:
 cmpwi   r29,  0x00                                   # 17b48
-beq+    dbgr_prompt                                  # 17b4c
+beq+    panic_prompt                                 # 17b4c
 bl      1f                                           # 17b50
 .ascii  "^n"                                         # 17b54
 .short  0                                            # 17b56
 .align  2                                            # 17b58
 1: mflr  r8                                          # 17b58
 bl      print_string                                 # 17b5c
-b       dbgr_prompt                                  # 17b60
+b       panic_prompt                                 # 17b60
 
-dbgr_0x884:
+panic_0x884:
 bl      major_0x187b0                                # 17b64
-bne-    dbgr_bad_opaque_id                           # 17b68
+bne-    panic_bad_opaque_id                          # 17b68
 mr      r30, r16                                     # 17b6c
 mr       r8, r16                                     # 17b70
 
@@ -36000,13 +36079,13 @@ bl      1f                                           # 17b7c
 bl      print_string                                 # 17b8c
 mr       r8, r30                                     # 17b90
 bl      print_hexword_spc                            # 17b94
-bl      dbgr_load_id_kind_strings                    # 17b98
+bl      panic_load_id_kind_strings                   # 17b98
 mflr    r17                                          # 17b9c
 slwi    r18,  r9,  4                                 # 17ba0
 add      r8, r17, r18                                # 17ba4
 bl      print_string                                 # 17ba8
 cmpwi    r9,  0x00                                   # 17bac
-beq-    dbgr_0x978                                   # 17bb0
+beq-    panic_0x978                                  # 17bb0
 bl      1f                                           # 17bb4
 .ascii  " at "                                       # 17bb8
 .short  0                                            # 17bbc
@@ -36022,41 +36101,41 @@ bl      1f                                           # 17bd0
 1: mflr  r8                                          # 17bd8
 bl      print_string                                 # 17bdc
 mr      r16, r31                                     # 17be0
-bl      dbgr_load_more_jumps                         # 17be4
+bl      panic_load_more_jumps                        # 17be4
 mflr    r17                                          # 17be8
 slwi    r18,  r9,  2                                 # 17bec
 lwzx    r17, r17, r18                                # 17bf0
 bl      print_memory                                 # 17bf4
-b       dbgr_prompt                                  # 17bf8
+b       panic_prompt                                 # 17bf8
 
-dbgr_missing_opaque_id:
+panic_missing_opaque_id:
 bl      1f                                           # 17bfc
 .ascii  "Need an opaque ID^n"                        # 17c00
 .short  0                                            # 17c13
 .align  2                                            # 17c15
 1: mflr  r8                                          # 17c18
 bl      print_string                                 # 17c1c
-b       dbgr_prompt                                  # 17c20
+b       panic_prompt                                 # 17c20
 
-dbgr_bad_opaque_id:
+panic_bad_opaque_id:
 bl      1f                                           # 17c24
 .ascii  "ID must be a hexadecimal value^n"           # 17c28
 .short  0                                            # 17c48
 .align  2                                            # 17c4a
 1: mflr  r8                                          # 17c4c
 bl      print_string                                 # 17c50
-b       dbgr_prompt                                  # 17c54
+b       panic_prompt                                 # 17c54
 
-dbgr_0x978:
+panic_0x978:
 bl      1f                                           # 17c58
 .ascii  "^n"                                         # 17c5c
 .short  0                                            # 17c5e
 .align  2                                            # 17c60
 1: mflr  r8                                          # 17c60
 bl      print_string                                 # 17c64
-b       dbgr_prompt                                  # 17c68
+b       panic_prompt                                 # 17c68
 
-dbgr_load_id_kind_strings:
+panic_load_id_kind_strings:
 blrl                                                 # 17c6c
 .ascii  "is invalid.    \x00"                        # 17c70
 .ascii  "Process        \x00"                        # 17c80
@@ -36074,7 +36153,7 @@ blrl                                                 # 17c6c
 .ascii  "Console Log    \x00"                        # 17d40
 .align  2                                            # 17d50
 
-dbgr_load_more_jumps:
+panic_load_more_jumps:
 blrl                                                 # 17d50
 .long   0                                            # 17d54
 .long   0x00000020                                   # 17d58
@@ -36091,7 +36170,7 @@ blrl                                                 # 17d50
 .long   0x00000028                                   # 17d84
 .long   0x00000010                                   # 17d88
 
-dbgr_load_id_args:
+panic_load_id_args:
 blrl                                                 # 17d8c
 .ascii  "-all\x00"                                   # 17d90
 .ascii  "-p\x00"                                     # 17d95
@@ -36150,7 +36229,7 @@ bl      1f                                           # 17e48
 .align  2                                            # 17e52
 1: mflr  r8                                          # 17e54
 bl      print_string                                 # 17e58
-lwz      r8,  0x0634( r1) # kdp.edp                  # 17e5c
+lwz      r8,  0x0634( r1) # kdp.pa_edp               # 17e5c
 bl      print_hexword_spc                            # 17e60
 bl      1f                                           # 17e64
 .ascii  "^nCurrent EWA "                             # 17e68
@@ -36248,7 +36327,7 @@ bl      1f                                           # 17fd0
 1: mflr  r8                                          # 17fd8
 bl      print_string                                 # 17fdc
 bl      print_xpt_info                               # 17fe0
-b       dbgr_prompt                                  # 17fe4
+b       panic_prompt                                 # 17fe4
 
 cmd_dump_registers:
 bl      1f                                           # 17fe8
@@ -36273,7 +36352,7 @@ bl      1f                                           # 18028
 1: mflr  r8                                          # 18030
 bl      print_string                                 # 18034
 bl      print_gprs                                   # 18038
-b       dbgr_prompt                                  # 1803c
+b       panic_prompt                                 # 1803c
 
 
 
@@ -36359,7 +36438,7 @@ b       dbgr_prompt                                  # 1803c
 ************************************************************
 
 Xrefs:
-dbgr
+panic
 
 ***********************************************************/
 
@@ -36451,7 +36530,7 @@ Goldmine. Tells me what the SPRGs do!
 ************************************************************
 
 Xrefs:
-dbgr
+panic
 
 ***********************************************************/
 
@@ -36511,7 +36590,7 @@ Both user-mode and supervisor-only
 ************************************************************
 
 Xrefs:
-dbgr
+panic
 
 ***********************************************************/
 
@@ -36591,7 +36670,7 @@ blr                                                  # 183e0
 ************************************************************
 
 Xrefs:
-dbgr
+panic
 
 ***********************************************************/
 
@@ -36644,7 +36723,7 @@ blr                                                  # 18464
 ************************************************************
 
 Xrefs:
-dbgr
+panic
 
 ***********************************************************/
 
@@ -36721,7 +36800,7 @@ blr                                                  # 18540
 ************************************************************
 
 Xrefs:
-dbgr
+panic
 
 ***********************************************************/
 
@@ -36777,7 +36856,7 @@ bl      1f                                           # 185c4
 bl      print_string                                 # 185d4
 addi    r16, r16,  0x01                              # 185d8
 addi    r17, r17, -0x01                              # 185dc
-bl      print_for_dbgr                               # 185e0
+bl      print_for_panic                              # 185e0
 cmpwi    r8, -0x01                                   # 185e4
 bne-    print_memory_0xb0                            # 185e8
 cmpwi   r17,  0x00                                   # 185ec
@@ -36802,7 +36881,7 @@ blr                                                  # 18608
 ************************************************************
 
 Xrefs:
-dbgr
+panic
 
 ***********************************************************/
 
@@ -36897,7 +36976,7 @@ bl      1f                                           # 186f4
 1: mflr  r8                                          # 18700
 bl      print_string                                 # 18704
 addi    r17, r17, -0x01                              # 18708
-bl      print_for_dbgr                               # 1870c
+bl      print_for_panic                              # 1870c
 cmpwi    r8, -0x01                                   # 18710
 bne-    print_memory_logical_0x114                   # 18714
 cmpwi   r17,  0x00                                   # 18718
@@ -36922,7 +37001,7 @@ blr                                                  # 18734
 ************************************************************
 
 Xrefs:
-dbgr
+panic
 
 ************************************************************
 
@@ -36980,7 +37059,7 @@ b       cmd_lookup_0x38                              # 18798
 ************************************************************
 
 Xrefs:
-dbgr
+panic
 
 ************************************************************
 
@@ -37009,7 +37088,7 @@ blr                                                  # 187ac
 ************************************************************
 
 Xrefs:
-dbgr
+panic
 
 ***********************************************************/
 
