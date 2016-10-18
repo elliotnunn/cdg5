@@ -1,8 +1,5 @@
 export PATH := /usr/cross/powerpc-eabi/bin:$(HOME)/mac-project/toolboxtoolbox:$(PATH)
 
-copy: tbxi.hqx
-	scp tbxi.hqx sweetpotato.local:$(HOME)/macstuff/
-
 tbxi.hqx: tbxi-data tbxi-rsrc 
 	binhexmake --data=tbxi-data --rsrc=tbxi-rsrc --type=tbxi --creator=chrp --name='Mac OS ROM' tbxi.hqx
 
@@ -155,9 +152,10 @@ qemu-test.dd: FORCE tbxi.hqx
 	rm .hcwd
 
 qemu: qemu-test.dd
-	qemu-system-ppc -M mac99 -m 512 -prom-env 'auto-boot?=true' -g 800x800x32 -drive format=raw,media=disk,file=qemu-test.dd
+	qemu-system-ppc -M mac99 -m 512 -prom-env 'auto-boot?=true' -g 800x600x32 -drive format=raw,media=disk,file=qemu-test.dd
 
-
+upload: tbxi.hqx
+	printf "open 192.168.0.6\nuser anonymous cdg5\ndelete tbxi.hqx\nput tbxi.hqx\ndelete \"System Folder\"/tbxi.hqx\nrename tbxi.hqx \"System Folder\"/tbxi.hqx\nclose\nexit\n" | ftp -n
 
 clean:
 	rm -f boot tbxi.hqx kern kern.o prcl rom tbxi-data tbxi-rsrc qemu-test.dd
