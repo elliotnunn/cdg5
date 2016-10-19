@@ -6,8 +6,8 @@ tbxi.hqx: tbxi-data tbxi-rsrc
 tbxi-data tbxi-rsrc: boot rsrc-template datafork-pefs
 	tbximake tbxi-data tbxi-rsrc boot rsrc-template datafork-pefs/NQDResidentCursor datafork-pefs/ProcessMgrLib
 
-boot: chrp-boot-script MacOS.elf prcl
-	bootmake --boot-script=chrp-boot-script --trampoline=MacOS.elf --parcels=prcl boot
+boot: chrp-boot-script trampoline.elf prcl
+	bootmake --boot-script=chrp-boot-script --trampoline=trampoline.elf --parcels=prcl boot
 
 prcl: prcl-pefs rom
 	@echo making parcels... takes a while
