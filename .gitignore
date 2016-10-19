@@ -6,4 +6,4 @@ prcl
 rom
 tbxi-data
 tbxi-rsrc
-*.dd
+test-boot.img

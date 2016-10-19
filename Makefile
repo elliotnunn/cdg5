@@ -145,20 +145,20 @@ kern.o: kern.asm
 	powerpc-eabi-as -many -mregnames -o kern.o kern.asm
 
 
-qemu-test.dd: FORCE tbxi.hqx
-	rsync ../qemu-template.dd qemu-test.dd
-	HOME=$$PWD hmount qemu-test.dd
+test-boot.img: FORCE tbxi.hqx
+	rsync test-template.img test-boot.img
+	HOME=$$PWD hmount test-boot.img
 	HOME=$$PWD hcopy -b tbxi.hqx 'QEMU HD:System Folder:'
 	rm .hcwd
 
-qemu: qemu-test.dd
-	qemu-system-ppc -M mac99 -m 512 -prom-env 'auto-boot?=true' -g 800x600x32 -drive format=raw,media=disk,file=qemu-test.dd
+test: test-boot.img
+	qemu-system-ppc -M mac99 -m 512 -prom-env 'auto-boot?=true' -g 800x600x32 -drive format=raw,media=disk,file=test-boot.img
 
 upload: tbxi.hqx
 	printf "open 192.168.0.6\nuser anonymous cdg5\ndelete tbxi.hqx\nput tbxi.hqx\ndelete \"System Folder\"/tbxi.hqx\nrename tbxi.hqx \"System Folder\"/tbxi.hqx\nclose\nexit\n" | ftp -n
 
 clean:
-	rm -f boot tbxi.hqx kern kern.o prcl rom tbxi-data tbxi-rsrc qemu-test.dd
+	rm -f boot tbxi.hqx kern kern.o prcl rom tbxi-data tbxi-rsrc test-boot.img
 
 
 FORCE:
