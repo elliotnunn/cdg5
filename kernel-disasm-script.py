@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import ppcdisasm as da
+import disasm as da
 from sys import argv
 from os import path
 from functools import partial
