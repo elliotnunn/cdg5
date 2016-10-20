@@ -1,9 +1,8 @@
-boot
-tbxi.hqx
-kern
-kern.o
+*.hqx
+*.o
+*.s
+*tbxi*
 prcl
-rom
-tbxi-data
-tbxi-rsrc
+kernel-built
+PowerROM
 test-boot.img

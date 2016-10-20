@@ -29,7 +29,7 @@ PowerROM: PowerROM-nokern $(KERNEL)
 kernel-built: kernel-built.o
 	$(DOCKER) elliotnunn/powerpc-binutils objcopy -O binary -j .text "$<" "$@"
 
-# Don't declare kernel-disasm.s as a dep because we never want to remake it!
+# Don't declare kernel-disasm.s as a dep because we only ever want to remake it manually
 kernel-built.o:
 	$(DOCKER) elliotnunn/powerpc-binutils as -many -mregnames --nops=2 -o "$@" kernel-disasm.s
 
