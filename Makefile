@@ -1,8 +1,9 @@
 # mount our current dir as /work in the container, and cd /work
 # --rm means don't keep this container after command is done
+# we are always root inside the container, but stay ourself outside
 # next arg should be the image to use (e.g. elliotnunn/toolboxtools)
 # then the next one should be the command to run
-DOCKER=docker run --volume="$$PWD":/work --workdir=/work --rm
+DOCKER=docker run --volume="$$PWD":/work --workdir=/work --env=HOME=/work --user=$(shell id -u):$(shell id -g) --rm
 
 # If there is a disassembled kernel (possibly edited) then use it. If not, use the stock kernel.
 ifeq ($(wildcard kernel-disasm.s),)
@@ -11,7 +12,8 @@ else
 	KERNEL=kernel-built
 endif
 
-.PHONY: test-boot.img test clean
+# We want these to re-run every time they are required
+.PHONY: test-boot.img kernel-disasm.s kernel-revert-to-stock test clean
 
 Mac\ OS\ ROM.hqx: tbxi-data tbxi-rsrc 
 	$(DOCKER) elliotnunn/toolboxtools binhexmake --data=tbxi-data --rsrc=tbxi-rsrc --type=tbxi --creator=chrp --name='Mac OS ROM' 'Mac OS ROM.hqx'
@@ -36,17 +38,23 @@ kernel-built.o:
 kernel-disasm.s: kernel-stock
 	$(DOCKER) elliotnunn/powerpc-disasm python kernel-disasm-script.py --disasm "$@" "$<"
 
+# PowerROM is likely tainted by the rebuilt kernel. Kill.
+kernel-revert-to-stock:
+	rm -f kernel-disasm.s PowerROM
+
+# hfsutils rather annoyingly stores state in $HOME/.hcwd, so we put it here instead
+# The rsync allows us to leave the destination read-write in qemu
 test-boot.img: Mac\ OS\ ROM.hqx
 	rsync test-template.img "$@"
-	HOME=$$PWD hmount "$@"
-	HOME=$$PWD hcopy -b "$<" 'QEMU HD:System Folder:'
+	$(DOCKER) elliotnunn/hfsutils hmount "$@"
+	$(DOCKER) elliotnunn/hfsutils hcopy -b 'Mac OS ROM.hqx' 'QEMU HD:System Folder:'
 	rm .hcwd
 
 test: test-boot.img
 	qemu-system-ppc -M mac99 -m 512 -prom-env 'auto-boot?=true' -g 800x600x32 -drive format=raw,media=disk,file="$<"
 
 clean:
-	rm -f base-tbxi 'Mac OS ROM.hqx' kernel-built kernel-built.o prcl PowerROM tbxi-data tbxi-rsrc test-boot.img
+	rm -f .hcwd base-tbxi 'Mac OS ROM.hqx' kernel-built kernel-built.o prcl PowerROM tbxi-data tbxi-rsrc test-boot.img
 
 prcl: prcl-pefs PowerROM
 	@echo making parcels... takes a while
