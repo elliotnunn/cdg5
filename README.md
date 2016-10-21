@@ -32,4 +32,4 @@ With QEMU 2.7.0 or later installed:
 make test
 ```
 
-To see the kernel log: look for `uncomment to debug` in `boot-script`. To change its colour, look at the very end of your `kernel-disasm.s`.
+To hide the kernel log: look for `uncomment to debug` in `boot-script`. To change its colour, look at the very end of your `kernel-disasm.s`.
