@@ -1,13 +1,3 @@
-**Problem:** One of my Docker Hub auto-builds [isn't working](https://github.com/docker/hub-feedback/issues/811) (elliotnunn/toolboxtools). Should be fine in a few hours. In the meantime, to build it yourself:
-
-```
-git clone https://github.com/elliotnunn/toolboxtoolbox.git
-cd toolboxtoolbox/docker/toolboxtools
-docker build -t elliotnunn/toolboxtools .
-```
-
-Regular instructions follow.
-
 Want to build the Mac OS ROM? Start with a working Docker.
 
 ```
