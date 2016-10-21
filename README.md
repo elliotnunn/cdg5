@@ -1,4 +1,4 @@
-**Problem:** One of my Docker Hub auto-builds [https://github.com/docker/hub-feedback/issues/811PR](isn't working) (elliotnunn/toolboxtools). Should be fine in a few hours. In the meantime, to build it yourself:
+**Problem:** One of my Docker Hub auto-builds [isn't working](https://github.com/docker/hub-feedback/issues/811PR) (elliotnunn/toolboxtools). Should be fine in a few hours. In the meantime, to build it yourself:
 
 ```
 git clone https://github.com/elliotnunn/toolboxtoolbox.git
