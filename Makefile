@@ -13,7 +13,7 @@ else
 endif
 
 # We want these to re-run every time they are required
-.PHONY: test-boot.img kernel-disasm.s kernel-revert-to-stock test clean
+.PHONY: test-boot.img kernel-redisassemble kernel-revert-to-stock test clean
 
 Mac\ OS\ ROM.hqx: tbxi-data tbxi-rsrc 
 	$(DOCKER) elliotnunn/toolboxtools binhexmake --data=tbxi-data --rsrc=tbxi-rsrc --type=tbxi --creator=chrp --name='Mac OS ROM' 'Mac OS ROM.hqx'
@@ -28,15 +28,14 @@ PowerROM: PowerROM-nokern $(KERNEL)
 	cp PowerROM-nokern "$@"
 	dd if=$(KERNEL) of="$@" conv=notrunc seek=3211264 bs=1
 
-kernel-built: kernel-built.o
-	$(DOCKER) elliotnunn/powerpc-binutils objcopy -O binary -j .text "$<" "$@"
+kernel-built: kernel-disasm.s
+	$(DOCKER) elliotnunn/powerpc-binutils as -many -mregnames --nops=2 -o kernel-built-intermed.o "$<"
+	$(DOCKER) elliotnunn/powerpc-binutils objcopy -O binary -j .text kernel-built-intermed.o "$@"
+	rm kernel-built-intermed.o
 
-# Don't declare kernel-disasm.s as a dep because we only ever want to remake it manually
-kernel-built.o:
-	$(DOCKER) elliotnunn/powerpc-binutils as -many -mregnames --nops=2 -o "$@" kernel-disasm.s
-
-kernel-disasm.s: kernel-stock
-	$(DOCKER) elliotnunn/powerpc-disasm python kernel-disasm-script.py --disasm "$@" "$<"
+kernel-redisassemble:
+	$(DOCKER) elliotnunn/powerpc-disasm python kernel-disasm-script.py --disasm kernel-disasm.s kernel-stock
+	rm -f kernel-built*
 
 # PowerROM is likely tainted by the rebuilt kernel. Kill.
 kernel-revert-to-stock:
@@ -54,7 +53,7 @@ test: test-boot.img
 	qemu-system-ppc -M mac99 -m 512 -prom-env 'auto-boot?=true' -g 800x600x32 -drive format=raw,media=disk,file="$<"
 
 clean:
-	rm -f .hcwd base-tbxi 'Mac OS ROM.hqx' kernel-built kernel-built.o prcl PowerROM tbxi-data tbxi-rsrc test-boot.img
+	rm -f .hcwd base-tbxi 'Mac OS ROM.hqx' kernel-built kernel-built-intermed.o prcl PowerROM tbxi-data tbxi-rsrc test-boot.img
 
 prcl: prcl-pefs PowerROM
 	@echo making parcels... takes a while
