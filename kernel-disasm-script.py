@@ -1158,8 +1158,8 @@ p.cmt('Trampoline leaves ConfigInfo value unchanged. PIH 06 also specified in Pi
 p.major(0x16180, 0x163dc, 'unknown_pih_08')
 p.arg('r1', 'kdp')
 
-p.major(0x163e0, 0x16520, 'print_string')
-p.cmt('Not done figuring this out, with the serial and stuff.')
+p.major(0x163e0, 0x16520, 'prints')
+p.cmt('Print null-terminated string with a few special escapes. Not done figuring this out, with the serial and stuff.')
 p.label(0x1643c, '*_skip_serial')
 for i in range(0x1644c, 0x16494, 4):
     sem = p.semantic_list[i]
@@ -1176,13 +1176,17 @@ p.major(0x16520, 0x165cc, 'print_common')
 p.major(0x165cc, 0x165ec, 'print_return')
 p.cmt('Restores registers from EWA and returns.')
 
-p.major(0x165ec, 0x16710, 'print_decimal')
+p.major(0x165ec, 0x16710, 'printd')
+p.cmt('print decimal')
 
-p.major(0x16710, 0x16734, 'print_word_hex')
+p.major(0x16710, 0x16734, 'printw')
+p.cmt('print word (hex) then a space')
 
-p.major(0x16734, 0x1675c, 'print_short_hex')
+p.major(0x16734, 0x1675c, 'printh')
+p.cmt('print halfword (hex) then a space')
 
-p.major(0x1675c, 0x16784, 'print_twodig_decimal')
+p.major(0x1675c, 0x16784, 'printb')
+p.cmt('print byte (hex) then a space')
 
 p.major(0x16784, 0x167ac, 'print_unknown')
 
@@ -1190,7 +1194,8 @@ p.major(0x167ac, 0x16880, 'print_digity_common')
 
 p.major(0x16880, 0x168ec, 'getchar')
 
-p.major(0x168ec, 0x16980, 'print_char')
+p.major(0x168ec, 0x16980, 'printc')
+p.cmt('print char')
 
 p.major(0x16980, 0x16ae8, 'serial_flush')
 p.cmt('This and the following func are a bit speculative, but whatever.')
