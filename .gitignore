@@ -1,8 +1,0 @@
-*.hqx
-*.o
-*.s
-*tbxi*
-prcl
-kernel-built
-PowerROM
-test-boot.img
