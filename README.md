@@ -10,8 +10,10 @@ Our work is spread over several GitHub repositories:
 - Disk-based Start Manager: <http://github.com/elliotnunn/boot3>
 - Bootloader-NanoKernel shim: <http://github.com/elliotnunn/wedge>
 
-Some code patching tools:
+Some tools:
 
+- Get data into and out of [HFS disk images](https://pypi.org/project/machfs) and [resource forks](https://pypi.org/project/macresources), robustly and portably
+- Build software in the Mac emulator of your choice: http://github.com/elliotnunn/BuildCubeE
 - Move resources around: <http://github.com/elliotnunn/zcp>
 - Patch PowerPC binaries: <http://github.com/elliotnunn/patchpef>
 - Patch 68k MPW code objects: <http://github.com/elliotnunn/patchobj>
