@@ -19,5 +19,6 @@ Some tools:
 - Patch 68k MPW code objects: <http://github.com/elliotnunn/patchobj>
 - Extract 68k MPW code objects from a ROM: <https://github.com/elliotnunn/unlink>
 - Graft a System Enabler onto a Mac OS ROM file: <https://github.com/elliotnunn/enablifier>
+- Use my personal collection of hacky tools: <https://github.com/elliotnunn/ToolboxToolbox>
 
 Most of our testing, and some of our discussion, takes place on the [MacOS9Lives](http://macos9lives.com) forums.
