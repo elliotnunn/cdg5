@@ -21,4 +21,4 @@ Some tools:
 - Graft a System Enabler onto a Mac OS ROM file: <https://github.com/elliotnunn/enablifier>
 - Use my personal collection of hacky tools: <https://github.com/elliotnunn/ToolboxToolbox>
 
-Most of our testing, and some of our discussion, takes place on the [MacOS9Lives](http://macos9lives.com) forums.
+Most of our testing takes place on the [MacOS9Lives](http://macos9lives.com) forums. Technical discussion is mainly on the [mailing list](https://lists.ucc.gu.uwa.edu.au/mailman/listinfo/cdg5).
