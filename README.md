@@ -4,8 +4,10 @@ The CDG5 project is an effort to thoroughly reverse-engineer Mac OS 9.2.2, the f
 
 Our work is spread over several GitHub repositories:
 
-- 3 MB 68k ROM: <http://github.com/elliotnunn/mac-rom>
-- 4 MB PowerPC rom, inc. NanoKernel: <http://github.com/elliotnunn/powermac-rom>
+- Patches to the SuperMario source: <http://github.com/elliotnunn/mac-rom>
+- ~~3 MB 68k ROM: <http://github.com/elliotnunn/mac-rom>~~ (use SuperMario Custer patchset instead)
+- 4 MB PowerPC rom, inc. v2 NanoKernel: <http://github.com/elliotnunn/powermac-rom>
+- Better reversal of v1 NanoKernel: <http://github.com/elliotnunn/NanoKernel>
 - Bootable "Mac OS ROM" file: <http://github.com/elliotnunn/newworld-rom>
 - Disk-based Start Manager: <http://github.com/elliotnunn/boot3>
 - Bootloader-NanoKernel shim: <http://github.com/elliotnunn/wedge>
