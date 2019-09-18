@@ -1,27 +1,23 @@
 # The CDG5 project
 
-The CDG5 project is an effort to thoroughly reverse-engineer Mac OS 9.2.2, the final release of the "Classic" Mac OS. We place an emphasis on supporting late-model PowerPC G4-based Macs, and also on hacking new features into the OS (e.g. support for >1.5 GB RAM).
+The CDG5 project is a wide-ranging effort to hack on the Classic Mac OS. We are motivated in equal parts by curiosity, nostalgia and a wish to see the OS run well on computers and configurations unsupported by Apple.
 
-Our work is spread over several GitHub repositories:
+If you want to contribute, or are just interested, get in touch. Discussion is mainly on the [mailing list](https://lists.ucc.gu.uwa.edu.au/mailman/listinfo/cdg5). Most of our testing takes place on the [MacOS9Lives](http://macos9lives.com) forums.
 
-- Patches to the SuperMario source: <http://github.com/elliotnunn/supermario>
-- ~~3 MB 68k ROM: <http://github.com/elliotnunn/mac-rom>~~ (use SuperMario Custer patchset instead)
-- 4 MB PowerPC rom, inc. v2 NanoKernel: <http://github.com/elliotnunn/powermac-rom>
-- Better reversal of v1 NanoKernel: <http://github.com/elliotnunn/NanoKernel>
-- ~~Bootable "Mac OS ROM" file: <http://github.com/elliotnunn/newworld-rom>~~ (use tbxi instead)
+Reverse engineered source code:
+
+- Patches to the widely distributed "SuperMario" source to compile a System file (7.1) or Mac OS ROM file (~OS 9.2.2): <http://github.com/elliotnunn/supermario>
+- Thorough reversal of Gary Davidian's Power Macintosh NanoKernel: <http://github.com/elliotnunn/NanoKernel>
+- Less-thorough reversal of René Vega's Multitasking NanoKernel: <http://github.com/elliotnunn/powermac-rom>
 - Disk-based Start Manager: <http://github.com/elliotnunn/boot3>
 - Bootloader-NanoKernel shim: <http://github.com/elliotnunn/wedge>
 
 Some tools:
 
-- Get data into and out of [HFS disk images](https://pypi.org/project/machfs) and [resource forks](https://pypi.org/project/macresources), robustly and portably
 - Dump, patch and rebuild Mac OS ROM files: <http://github.com/elliotnunn/tbxi>, <http://github.com/elliotnunn/tbxi-patches>
+- Get data into and out of [HFS disk images](https://pypi.org/project/machfs) and [resource forks](https://pypi.org/project/macresources), robustly and portably
 - Build software in the Mac emulator of your choice: http://github.com/elliotnunn/BuildCubeE
-- Move resources around: <http://github.com/elliotnunn/zcp>
 - Patch PowerPC binaries: <http://github.com/elliotnunn/patchpef>
 - Patch 68k MPW code objects: <http://github.com/elliotnunn/patchobj>
-- Extract 68k MPW code objects from a ROM: <https://github.com/elliotnunn/unlink>
-- ~~Graft a System Enabler onto a Mac OS ROM file: <https://github.com/elliotnunn/enablifier>~~ (use tbxi instead)
+- Extract 68k MPW code objects from a ROM (used for the Mac OS ROM build above): <https://github.com/elliotnunn/unlink>
 - Use my personal collection of hacky tools: <https://github.com/elliotnunn/ToolboxToolbox>
-
-Most of our testing takes place on the [MacOS9Lives](http://macos9lives.com) forums. Technical discussion is mainly on the [mailing list](https://lists.ucc.gu.uwa.edu.au/mailman/listinfo/cdg5).
