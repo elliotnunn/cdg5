@@ -14,6 +14,7 @@ Reverse engineered source code:
 
 Some tools:
 
+- Mac OS guest integration for Qemu: <http://github.com/elliotnunn/classicvirtio>
 - Dump, patch and rebuild Mac OS ROM files: <http://github.com/elliotnunn/tbxi>, <http://github.com/elliotnunn/tbxi-patches>
 - Get data into and out of [HFS disk images](https://pypi.org/project/machfs) and [resource forks](https://pypi.org/project/macresources), robustly and portably
 - Build software in the Mac emulator of your choice: http://github.com/elliotnunn/BuildCubeE
